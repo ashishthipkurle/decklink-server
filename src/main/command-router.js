@@ -8,7 +8,6 @@ import * as obsExec from './executors/obs.js';
 import * as pairing from './pairing.js';
 
 async function handleCommand(data) {
-  require('fs').appendFileSync('d:/All Projects/My_Elgato_Steam_deck/decklink-server/command_log.txt', new Date().toISOString() + ' Received: ' + JSON.stringify(data) + '\n');
   // data format: { id, type: 'command', action: '...', payload: {...}, token: '...' }
   const { action, payload } = data;
   

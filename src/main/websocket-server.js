@@ -1,8 +1,12 @@
+process.env.WS_NO_BUFFER_UTIL = 'true';
+process.env.WS_NO_UTF_8_VALIDATE = 'true';
+
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { WebSocketServer } from 'ws';
 import os from 'os';
+import qrcode from 'qrcode';
 import * as auth from './auth.js';
 import * as storeModule from './store.js';
 import * as commandRouter from './command-router.js';
@@ -33,10 +37,19 @@ function getLocalIPs() {
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        ips.push({ interface: name, address: net.address });
+        const isVirt = /vmware|virtualbox|vbox|wsl|hyper-v|vethernet|tailscale|zerotier|loopback/i.test(name);
+        const isRec = !isVirt && /wi-fi|wifi|wireless|wlan|ethernet/i.test(name);
+        ips.push({ interface: name, address: net.address, isRec, isVirt });
       }
     }
   }
+  ips.sort((a, b) => {
+    if (a.isRec && !b.isRec) return -1;
+    if (!a.isRec && b.isRec) return 1;
+    if (!a.isVirt && b.isVirt) return -1;
+    if (a.isVirt && !b.isVirt) return 1;
+    return 0;
+  });
   return ips;
 }
 
@@ -45,11 +58,52 @@ function startWebSocketServer(customPort) {
 
   // Create HTTP server that serves the mobile web app for phone browsers!
   httpServer = http.createServer((req, res) => {
+    const reqUrl = req.url || '/';
+
+    if (reqUrl.startsWith('/manifest.json')) {
+      const candidates = [
+        path.join(__dirname, '..', 'web', 'manifest.json'),
+        path.join(process.cwd(), 'src', 'web', 'manifest.json'),
+        path.join(process.resourcesPath || '', 'manifest.json'),
+        path.join(process.resourcesPath || '', 'src', 'web', 'manifest.json')
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          res.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8' });
+          res.end(fs.readFileSync(p));
+          return;
+        }
+      }
+    }
+
+    if (reqUrl.startsWith('/api/info')) {
+      const localIps = getLocalIPs();
+      const primaryIp = localIps.length > 0 ? localIps[0].address : 'localhost';
+      const deckUrl = `http://${primaryIp}:${port}`;
+
+      qrcode.toDataURL(deckUrl, { width: 260, margin: 1 }, (err, qrDataUrl) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+          ips: localIps,
+          port,
+          token: storeModule.USB_AUTO_TOKEN,
+          deckUrl,
+          qrDataUrl: qrDataUrl || ''
+        }));
+      });
+      return;
+    }
+
     try {
       const candidates = [
         path.join(__dirname, '..', 'web', 'mobile-deck.html'),
         path.join(process.cwd(), 'src', 'web', 'mobile-deck.html'),
-        path.join(__dirname, 'mobile-deck.html')
+        path.join(__dirname, 'mobile-deck.html'),
+        path.join(process.resourcesPath || '', 'mobile-deck.html'),
+        path.join(process.resourcesPath || '', 'src', 'web', 'mobile-deck.html')
       ];
 
       for (const p of candidates) {

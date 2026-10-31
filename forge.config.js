@@ -1,9 +1,17 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const path = require('path');
 
 module.exports = {
   packagerConfig: {
     asar: true,
+    name: 'DeckLink',
+    executableName: 'DeckLink',
+    extraResource: [
+      path.join(__dirname, 'DeckLinkNative.exe'),
+      path.join(__dirname, 'src', 'web', 'mobile-deck.html'),
+      path.join(__dirname, 'src', 'web', 'manifest.json')
+    ]
   },
   rebuildConfig: {},
   makers: [

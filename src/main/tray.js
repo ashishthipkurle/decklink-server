@@ -1,9 +1,22 @@
 const { app, Tray, Menu, nativeImage, BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs');
 import * as pairing from './pairing.js';
 
 let tray = null;
 let settingsWindow = null;
+
+function getPreloadPath() {
+  const candidates = [
+    path.join(__dirname, 'preload.js'),
+    path.join(__dirname, '..', 'preload.js'),
+    path.join(__dirname, 'build', 'preload.js')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.join(__dirname, 'preload.js');
+}
 
 function createSettingsWindow() {
   if (settingsWindow) {
@@ -13,14 +26,14 @@ function createSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 720,
-    height: 640,
-    minWidth: 500,
-    minHeight: 480,
+    width: 900,
+    height: 760,
+    minWidth: 620,
+    minHeight: 560,
     title: 'DeckLink PC Server',
-    backgroundColor: '#0D0D12',
+    backgroundColor: '#f6f5fb',
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload.js')
+      preload: getPreloadPath()
     },
     autoHideMenuBar: true
   });

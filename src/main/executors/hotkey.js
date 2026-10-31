@@ -1,6 +1,4 @@
-import { execFile } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+import { sendNativeCommand } from '../native-engine.js';
 
 const winModVK = {
   'ctrl': 17, // VK_CONTROL
@@ -28,38 +26,17 @@ const winKeyVK = {
   'up': 38, 'down': 40, 'left': 37, 'right': 39
 };
 
-function getSendKeyExe() {
-  const candidates = [
-    path.join(__dirname, 'SendKey.exe'),
-    path.join(__dirname, '..', 'SendKey.exe'),
-    path.join(__dirname, '..', '..', 'SendKey.exe'),
-    path.join(process.cwd(), 'SendKey.exe'),
-    path.join(process.cwd(), 'decklink-server', 'SendKey.exe'),
-    'D:\\All Projects\\My_Elgato_Steam_deck\\decklink-server\\SendKey.exe'
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return 'D:\\All Projects\\My_Elgato_Steam_deck\\decklink-server\\SendKey.exe';
-}
-
 async function executeHotkey(payload) {
   const { modifiers = [], key } = payload;
   if (!key) throw new Error('Hotkey key is required');
 
   const lowerMods = modifiers.map(m => (m || '').toLowerCase());
   const lowerKey = key.toLowerCase();
-  const exe = getSendKeyExe();
 
   // Special case: Windows Snipping Tool (Win + Shift + S)
   if ((lowerMods.includes('win') || lowerMods.includes('meta')) && lowerMods.includes('shift') && lowerKey === 's') {
-    return new Promise((resolve) => {
-      execFile(exe, ['snip'], (err) => {
-        if (err) console.error('[SendKey Snip Error]', err);
-        else console.log('[Hotkey] Triggered Snipping Tool: Win+Shift+S');
-        resolve({ status: 'ok' });
-      });
-    });
+    sendNativeCommand('snip');
+    return { status: 'ok' };
   }
 
   const modVKs = lowerMods.map(m => winModVK[m]).filter(Boolean);
@@ -69,17 +46,12 @@ async function executeHotkey(payload) {
     throw new Error(`Unsupported key: ${key}`);
   }
 
-  const args = modVKs.length > 0
-    ? ['combo', ...modVKs.map(String), String(mainVK)]
-    : ['press', String(mainVK)];
+  const cmd = modVKs.length > 0
+    ? `combo ${modVKs.join(' ')} ${mainVK}`
+    : `press ${mainVK}`;
 
-  return new Promise((resolve) => {
-    execFile(exe, args, (err) => {
-      if (err) console.error('[SendKey Hotkey Error]', err);
-      else console.log(`[Hotkey] Triggered: ${modifiers.join('+')}${modifiers.length > 0 ? '+' : ''}${key}`);
-      resolve({ status: 'ok' });
-    });
-  });
+  sendNativeCommand(cmd);
+  return { status: 'ok' };
 }
 
 export { executeHotkey };

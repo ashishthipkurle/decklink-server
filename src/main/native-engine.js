@@ -1,7 +1,24 @@
 import { spawn, execFile } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
-const nativeExe = path.join(__dirname, '..', '..', 'DeckLinkNative.exe');
+function resolveNativeExe() {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'DeckLinkNative.exe'),
+    path.join(path.dirname(process.execPath || ''), 'resources', 'DeckLinkNative.exe'),
+    path.join(__dirname, '..', '..', 'DeckLinkNative.exe'),
+    path.join(__dirname, '..', 'DeckLinkNative.exe'),
+    path.join(__dirname, 'DeckLinkNative.exe'),
+    path.join(process.cwd(), 'DeckLinkNative.exe'),
+    path.join(process.cwd(), 'decklink-server', 'DeckLinkNative.exe')
+  ];
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+  return path.join(process.resourcesPath || '', 'DeckLinkNative.exe');
+}
+
+const nativeExe = resolveNativeExe();
 let nativeProc = null;
 
 function getNativeProcess() {
@@ -11,9 +28,12 @@ function getNativeProcess() {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true
     });
-    nativeProc.on('error', (err) => console.error('[Native Engine Error]:', err.message));
+    nativeProc.on('error', (err) => {
+      console.error('[Native Engine Error]:', err.message);
+      nativeProc = null;
+    });
     nativeProc.on('exit', () => { nativeProc = null; });
-    console.log('[Native Engine] Persistent Input Daemon Active (Zero process overhead)');
+    console.log('[Native Engine] Persistent Input Daemon Active');
   } catch (err) {
     console.error('[Native Engine Spawn Error]:', err.message);
   }
@@ -28,4 +48,3 @@ export function sendNativeCommand(cmdStr) {
     execFile(nativeExe, cmdStr.trim().split(' '), () => {});
   }
 }
-

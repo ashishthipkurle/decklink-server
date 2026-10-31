@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#070a15">
 <title>DeckLink+ - Stream Deck</title>
+<link rel="manifest" href="/manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1093,12 +1094,12 @@ body.disp-hidden .deck-keys-wrap {
   transition: translate .45s cubic-bezier(.2,.9,.3,1.1), scale .45s cubic-bezier(.2,.9,.3,1.1), opacity .3s, visibility 0s .45s;
   color: var(--fg);
 }
-body.so .sbg, body.dso .sbg, body.gso .sbg {
+body.so .sbg, body.dso .sbg, body.gso .sbg, body.pso .sbg {
   opacity: 1;
   visibility: visible;
   transition: opacity .3s;
 }
-body.so .sheet:not(.dial-sheet):not(.grid-sheet), body.dso #dial-sheet, body.gso #grid-sheet {
+body.so .sheet:not(.dial-sheet):not(.grid-sheet):not(.pair-sheet), body.dso #dial-sheet, body.gso #grid-sheet, body.pso #pair-sheet {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -1520,7 +1521,7 @@ body.pk.so .sheet {
     translate: 0 40px;
     padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   }
-  body.so .sheet:not(.dial-sheet):not(.grid-sheet), body.dso #dial-sheet, body.gso #grid-sheet { translate: 0 0; }
+  body.so .sheet:not(.dial-sheet):not(.grid-sheet):not(.pair-sheet), body.dso #dial-sheet, body.gso #grid-sheet, body.pso #pair-sheet { translate: 0 0; }
   .pkr {
     top: auto;
     bottom: 0;
@@ -1754,6 +1755,45 @@ body.pk.so .sheet {
     <button class="gh warn" id="grid-reset-btn">Reset Defaults</button>
     <button class="gh" id="grid-scx">Cancel</button>
     <button class="save" id="grid-save-btn">Apply Layout</button>
+  </div>
+</section>
+
+<!-- Modern Glass Connection & Pair Devices Sheet -->
+<section class="sheet pair-sheet" id="pair-sheet" role="dialog" aria-modal="true" aria-labelledby="pair-title">
+  <div class="sh-head">
+    <div class="conn-led" id="pair-led" style="width: 20px; height: 20px; flex-shrink: 0;"></div>
+    <div class="sh-ttl">
+      <h2 id="pair-title">Connect Mobile Device</h2>
+      <p id="pair-sub">Scan to open Stream Deck on phone or tablet</p>
+    </div>
+    <button class="sh-x" id="pair-sx" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="pair-body" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 14px;">
+    <div style="background: #ffffff; padding: 10px; border-radius: 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); width: 210px; height: 210px; display: flex; align-items: center; justify-content: center;">
+      <img id="pair-qr-img" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="QR Code" />
+      <span id="pair-qr-loading" style="color: #666; font-size: 0.85rem; font-weight: 500;">Generating QR Code...</span>
+    </div>
+    <div style="font-size: 0.82rem; color: var(--dim); text-align: center; max-width: 320px; line-height: 1.4;">
+      Point your iPhone, iPad, or Android camera at the QR code to open your deck instantly with zero typing.
+    </div>
+
+    <div class="fl-t" style="align-self: flex-start; margin: 6px 0 2px;">Local Wi-Fi Deck Address</div>
+    <div style="display: flex; gap: 8px; width: 100%;">
+      <input class="sh-in" id="pair-url-input" readonly value="" style="font-family: monospace; font-size: 0.84rem;" />
+      <button class="gh" id="pair-copy-btn" style="flex-shrink: 0; padding: 10px 14px;">Copy</button>
+    </div>
+
+    <div style="background: color-mix(in srgb, var(--fg) 6%, transparent); border: 1px solid var(--ln); border-radius: 14px; padding: 12px; width: 100%; font-size: 0.78rem; line-height: 1.5; color: var(--dim);">
+      💡 <strong style="color: var(--fg);">Pro Tip:</strong> On your phone, tap <em>Share → Add to Home Screen</em> (Safari) or <em>⋮ → Add to Home screen</em> (Chrome) to run DeckLink borderless and full-screen without any browser bars!
+    </div>
+  </div>
+
+  <div class="sh-foot">
+    <span></span>
+    <button class="save" id="pair-done-btn">Done</button>
   </div>
 </section>
 
@@ -2111,11 +2151,52 @@ function cmd(action, payload = {}) {
   ws.send(JSON.stringify({ id: Date.now().toString(), type: 'command', action, payload, token: 'decklink-usb-auto' }));
 }
 
-$('sb').addEventListener('click', () => {
+function openPairSheet() {
   const isConn = !$('sb').classList.contains('conn') && !$('sb').classList.contains('off');
   const isConnecting = $('sb').classList.contains('conn');
-  toast(isConn ? 'DeckLink: Connected' : (isConnecting ? 'DeckLink: Connecting...' : 'DeckLink: Offline'));
-});
+
+  const pairLed = $('pair-led');
+  if (pairLed) {
+    pairLed.className = 'conn-led' + (isConn ? '' : (isConnecting ? ' conn' : ' off'));
+  }
+  const pairSub = $('pair-sub');
+  if (pairSub) {
+    pairSub.textContent = isConn ? 'Companion Connected · Ready for Phone' : (isConnecting ? 'Connecting to PC Companion...' : 'Offline · Ensure PC Companion is Running');
+  }
+
+  const currentOrigin = window.location.origin.includes('http') ? window.location.origin : 'http://localhost:8765';
+  $('pair-url-input').value = currentOrigin;
+
+  // Fetch /api/info from server to get accurate local Wi-Fi IP and pre-generated QR code
+  fetch('/api/info').then(r => r.json()).then(data => {
+    if (data.deckUrl) $('pair-url-input').value = data.deckUrl;
+    if (data.qrDataUrl) {
+      $('pair-qr-img').src = data.qrDataUrl;
+      $('pair-qr-img').style.display = 'block';
+      $('pair-qr-loading').style.display = 'none';
+    }
+  }).catch(() => {
+    $('pair-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent($('pair-url-input').value)}`;
+    $('pair-qr-img').style.display = 'block';
+    $('pair-qr-loading').style.display = 'none';
+  });
+
+  document.body.classList.add('pso');
+}
+
+function closePairSheet() {
+  document.body.classList.remove('pso');
+}
+
+$('sb').addEventListener('click', openPairSheet);
+$('pair-sx').onclick = closePairSheet;
+$('pair-done-btn').onclick = closePairSheet;
+
+$('pair-copy-btn').onclick = () => {
+  const urlVal = $('pair-url-input').value;
+  navigator.clipboard.writeText(urlVal);
+  toast('Copied URL: ' + urlVal);
+};
 
 function def(id) {
   let item = null;
@@ -2517,9 +2598,10 @@ setInterval(() => {
 
 /* Keyboard 1-9 shortcuts */
 addEventListener('keydown', e => {
-  if (document.body.classList.contains('so') || document.body.classList.contains('dso') || document.body.classList.contains('gso')) {
+  if (document.body.classList.contains('so') || document.body.classList.contains('dso') || document.body.classList.contains('gso') || document.body.classList.contains('pso')) {
     if (e.key === 'Escape') {
       if (document.body.classList.contains('pk')) closePk();
+      else if (document.body.classList.contains('pso')) closePairSheet();
       else if (document.body.classList.contains('gso')) closeGridSheet();
       else if (document.body.classList.contains('dso')) closeDialSheet();
       else closeSheet();
@@ -4119,7 +4201,8 @@ if (gridSaveBtn) {
 
 $('sx').onclick = $('scx').onclick = closeSheet;
 $('sbg').onclick = () => {
-  if (document.body.classList.contains('gso')) closeGridSheet();
+  if (document.body.classList.contains('pso')) closePairSheet();
+  else if (document.body.classList.contains('gso')) closeGridSheet();
   else if (document.body.classList.contains('dso')) closeDialSheet();
   else if (document.body.classList.contains('so')) closeSheet();
 };

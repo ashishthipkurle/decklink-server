@@ -345,6 +345,26 @@ public class DeckLinkNative {
     public static void Main(string[] args) {
         if (args.Length == 0) {
             Console.WriteLine("DeckLinkNative Active");
+            string line;
+            while ((line = Console.ReadLine()) != null) {
+                line = line.Trim();
+                if (string.IsNullOrEmpty(line)) continue;
+                if (line.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
+                    line.Equals("quit", StringComparison.OrdinalIgnoreCase)) {
+                    break;
+                }
+                string[] parts = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 0) {
+                    string c = parts[0].ToLower();
+                    string fa = parts.Length > 1 ? string.Join(" ", parts, 1, parts.Length - 1) : "";
+                    try {
+                        ExecuteCommand(c, fa, parts);
+                        Console.WriteLine("OK");
+                    } catch (Exception ex) {
+                        Console.WriteLine("ERR: " + ex.Message);
+                    }
+                }
+            }
             return;
         }
 

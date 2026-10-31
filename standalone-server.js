@@ -272,8 +272,58 @@ async function handleCommand(data) {
   }
 }
 
-// HTTP Server: Serves the mobile web UI
+// HTTP Server: Serves the mobile web UI and API info
 const server = http.createServer((req, res) => {
+  const parsed = url.parse(req.url, true);
+
+  if (parsed.pathname === '/manifest.json') {
+    const manifestPath = path.join(__dirname, 'src', 'web', 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+      res.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8' });
+      res.end(fs.readFileSync(manifestPath));
+      return;
+    }
+  }
+
+  if (parsed.pathname === '/api/info') {
+    const localIps = getLocalIPs();
+    const primaryIp = localIps.length > 0 ? localIps[0].address : 'localhost';
+    const deckUrl = `http://${primaryIp}:${PORT}`;
+    
+    let qrcodeModule = null;
+    try { qrcodeModule = require('qrcode'); } catch (_) {}
+
+    if (qrcodeModule) {
+      qrcodeModule.toDataURL(deckUrl, { width: 260, margin: 1 }, (err, qrDataUrl) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+          ips: localIps,
+          port: PORT,
+          token: VALID_TOKEN,
+          deckUrl,
+          qrDataUrl: qrDataUrl || ''
+        }));
+      });
+      return;
+    } else {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({
+        ips: localIps,
+        port: PORT,
+        token: VALID_TOKEN,
+        deckUrl,
+        qrDataUrl: ''
+      }));
+      return;
+    }
+  }
+
   try {
     const htmlPath = path.join(__dirname, 'src', 'web', 'mobile-deck.html');
     if (fs.existsSync(htmlPath)) {

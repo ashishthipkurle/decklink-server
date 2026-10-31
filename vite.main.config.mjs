@@ -1,15 +1,11 @@
 import { defineConfig } from 'vite';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
-const external = Object.keys(packageJson.dependencies || {});
 
 // https://vitejs.dev/config
+// All npm dependencies (ws, qrcode, etc.) are bundled by Rollup into .vite/build/main.js
+// so that app.asar is completely self-contained with zero missing module exceptions at runtime.
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      external,
-    },
+  define: {
+    'process.env.WS_NO_BUFFER_UTIL': '"true"',
+    'process.env.WS_NO_UTF_8_VALIDATE': '"true"',
   },
 });
