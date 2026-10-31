@@ -1,0 +1,21 @@
+{
+	"server": {
+		"port": 8765
+	},
+	"pairing": {
+		"devices": [
+			{
+				"id": "usb-auto-device",
+				"name": "USB Direct",
+				"token": "decklink-usb-auto",
+				"pairedAt": 1793355270586,
+				"lastConnectedAt": null
+			}
+		]
+	},
+	"obs": {
+		"host": "localhost",
+		"port": 4455,
+		"password": ""
+	}
+}

@@ -1,0 +1,4179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#070a15">
+<title>DeckLink+ - Stream Deck</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg1: #1a2040;
+  --bg2: #070a15;
+  --fg: #e8ecfb;
+  --dim: #8f9ac0;
+  --g: 2.6%;
+  --card-bg: linear-gradient(160deg, #1b1e33 0%, #0f1122 100%);
+  --card-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -6px 14px rgba(0,0,0,.5), 0 46px 80px -26px rgba(0,0,0,.85), 0 8px 0 -2px #0a0c18;
+  --brand-color: #e8ecfb;
+  --strip-bg: #0a0c18;
+  --strip-shadow: inset 0 2px 8px rgba(0,0,0,.6);
+  --strip-border: 1px solid rgba(255,255,255,.07);
+  --strip-fg: #cfd6f5;
+  --strip-meter-bg: rgba(255,255,255,.14);
+  --strip-num: #fff;
+  color-scheme: dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+:root[data-theme="light"] {
+  --bg1: #f4f6fd;
+  --bg2: #d5dcf0;
+  --fg: #1a2040;
+  --dim: #5f6a8f;
+  --card-bg: linear-gradient(160deg, #ffffff 0%, #e7eaf4 100%);
+  --card-shadow: inset 0 2px 0 #fff, inset 0 -6px 12px rgba(120,130,170,.18), 0 46px 80px -26px rgba(0,0,0,.55), 0 8px 0 -2px #c9cfe2;
+  --brand-color: #2a3050;
+  --strip-bg: linear-gradient(180deg, #d8dee9 0%, #cbd5e1 100%);
+  --strip-shadow: inset 0 2px 6px rgba(0,0,0,.15), inset 0 -1px 2px rgba(255,255,255,.7);
+  --strip-border: 1px solid rgba(0,0,0,.1);
+  --strip-fg: #334155;
+  --strip-meter-bg: rgba(0,0,0,.12);
+  --strip-num: #0f172a;
+  color-scheme: light;
+}
+
+html { height: 100%; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100%;
+  background: radial-gradient(90% 70% at 50% 0%, var(--bg1), var(--bg2));
+  color: var(--fg);
+  font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 3px solid #6aa8ff; outline-offset: 3px; border-radius: 16px; }
+
+.wrap {
+  width: min(var(--deck-max-width, 780px), 100%);
+  transition: width .3s ease;
+}
+
+/* ── Device Top Bar (Inside Hardware Shell) ── */
+.device-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.8%;
+  padding: 0 4px;
+  min-height: 32px;
+  gap: 12px;
+}
+
+.device-top-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.conn-led {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981, inset 0 1px 2px rgba(255,255,255,.6);
+  transition: all .25s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.conn-led.conn {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: pulse-led 1.2s infinite ease-in-out;
+}
+.conn-led.off {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: none;
+}
+@keyframes pulse-led {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.85); }
+}
+
+.device-top-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.brand {
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: .32em;
+  font-size: .8rem;
+  color: var(--brand-color);
+  margin: 0;
+  line-height: 1;
+}
+.brand b { color: #7a5cff; }
+
+.stat { display: flex; gap: 6px; align-items: center; }
+
+.pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  animation: pop .4s cubic-bezier(.3,1.5,.5,1);
+}
+.pill.live { background: #ff3d6e; }
+.pill.rec { background: #7a5cff; }
+@keyframes pop { from { scale: .6; opacity: 0; } }
+
+.device-top-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+.edit {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  background: rgba(127,140,190,.16);
+  color: var(--fg);
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+  transition: all .25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  letter-spacing: .01em;
+}
+.edit:active { transform: scale(.94); }
+.edit[aria-pressed=true] {
+  background: linear-gradient(135deg, #a48aff, #6a4cf0);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px -3px #6a4cf0;
+}
+
+.thm-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(127,140,190,.16);
+  color: var(--fg);
+  font-size: .88rem;
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+  transition: all .25s ease;
+  cursor: pointer;
+}
+.thm-btn:hover { background: rgba(127,140,190,.28); transform: rotate(15deg); }
+.thm-btn:active { transform: scale(.92) rotate(45deg); }
+
+/* ── Hardware Shell ── */
+.device {
+  position: relative;
+  padding: var(--device-pad, 3.8% 4.2%);
+  border-radius: var(--device-radius, 36px);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  transition: background .3s, box-shadow .3s, padding .3s, border-radius .3s;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Keys Horizontal Slider (Swipe left/right) ── */
+.keys-slider {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
+  border-radius: 24px;
+  touch-action: pan-x;
+  padding: 8px 0 10px 0;
+  margin: 0;
+}
+.keys-slider::-webkit-scrollbar { display: none; }
+
+.keys-page {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: start;
+  display: grid;
+  grid-template-columns: repeat(var(--deck-cols, 4), 1fr);
+  grid-template-rows: repeat(var(--deck-rows, 2), 1fr);
+  gap: var(--card-gap, clamp(10px, var(--g, 2.6%), 18px));
+  padding: var(--card-pad, 14px 12px 16px 12px);
+  box-sizing: border-box;
+}
+
+.key {
+  --a: #9a7bff;
+  --b: #6a4cf0;
+  position: relative;
+  aspect-ratio: var(--card-aspect, 1);
+  border-radius: var(--card-radius, 18%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7%;
+  color: #fff;
+  font-weight: 500;
+  font-size: var(--card-font-size, clamp(.66rem, 2.1vw, .95rem));
+  background: linear-gradient(150deg, var(--a), var(--b));
+  box-shadow: 0 6px 14px -6px rgba(40,30,110,.55), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .12s ease, box-shadow .2s, filter .2s;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.key * {
+  pointer-events: none;
+}
+.key:active, .key.down {
+  transform: scale(.92);
+  filter: brightness(1.12);
+}
+.key.hit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(255,255,255,.65), transparent 70%);
+  animation: flash .45s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes flash { from { opacity: 1; scale: .4; } to { opacity: 0; scale: 1.25; } }
+
+.key svg {
+  width: 36%;
+  height: 36%;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.key span { pointer-events: none; }
+.key .emoji-ic, .key .emo {
+  font-size: clamp(18px, 4vw, 28px);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.pvk .emo, .pvk .emoji-ic {
+  font-size: 26px;
+  line-height: 1;
+}
+.key.on {
+  box-shadow: 0 0 0 2.5px #fff, 0 0 0 5.5px var(--b), 0 8px 20px -4px var(--b);
+}
+.key .n {
+  position: absolute;
+  top: 7%;
+  left: 9%;
+  font-size: .62rem;
+  opacity: .65;
+  font-weight: 700;
+}
+.key .dot {
+  position: absolute;
+  top: 8%;
+  right: 9%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+  animation: pop .3s;
+  pointer-events: none;
+}
+.key.blk { --a: #2b2e44; --b: #0d0e18; }
+
+.keys-slider.editing {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  touch-action: pan-y !important;
+}
+.keys-slider.editing .keys-page {
+  touch-action: pan-y !important;
+}
+.keys-slider.editing .key {
+  touch-action: manipulation !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.keys-slider.editing .key * {
+  pointer-events: none !important;
+}
+.keys-slider.editing .key::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: calc(18% - 4px);
+  border: 2px dashed rgba(255,255,255,.85);
+  pointer-events: none;
+  animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+}
+
+/* ── Empty '+' Placeholder Cards ── */
+.key.empty {
+  background: rgba(120, 130, 175, 0.08);
+  border: 2px dashed rgba(120, 130, 175, 0.35);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.03);
+  color: var(--dim, #5f6a8f);
+  filter: none;
+}
+:root[data-theme="dark"] .key.empty,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .key.empty {
+    background: rgba(255, 255, 255, 0.04);
+    border: 2px dashed rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.45);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+}
+.key.empty .plus-icon {
+  width: 36%;
+  height: 36%;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: none;
+  transition: transform .2s ease, stroke .2s ease;
+}
+.key.empty:hover {
+  border-color: #7a5cff;
+  border-style: dashed;
+  color: #7a5cff;
+  background: rgba(122, 92, 255, 0.12);
+  box-shadow: 0 8px 20px -4px rgba(122, 92, 255, 0.35);
+}
+.key.empty:hover .plus-icon {
+  transform: scale(1.18);
+}
+.key.empty:active, .key.empty.down {
+  transform: scale(.93);
+  background: rgba(122, 92, 255, 0.22);
+}
+
+/* ── Main Keys Section & Vertical Page Indicator on Left Edge ── */
+.deck-keys-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+}
+.v-page-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  width: 16px;
+  margin-right: 4px;
+  z-index: 5;
+  user-select: none;
+}
+.v-page-dots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.vpdot {
+  width: 6px;
+  height: 6px;
+  padding: 5px 4px;
+  background-clip: content-box;
+  box-sizing: content-box;
+  border-radius: 99px;
+  background-color: rgba(127,140,190,.32);
+  transition: all .25s cubic-bezier(.3,1.5,.5,1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.vpdot:hover {
+  background-color: rgba(127,140,190,.65);
+}
+.vpdot.active {
+  height: 22px;
+  background-color: #7a5cff;
+  box-shadow: 0 0 10px rgba(122,92,255,.6);
+}
+:root[data-theme="dark"] .vpdot {
+  background-color: rgba(255,255,255,.2);
+}
+:root[data-theme="dark"] .vpdot:hover {
+  background-color: rgba(255,255,255,.45);
+}
+:root[data-theme="dark"] .vpdot.active {
+  background-color: #8f72ff;
+  box-shadow: 0 0 12px rgba(143,114,255,.7);
+}
+
+.v-add-page-btn {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px dashed rgba(122,92,255,.6);
+  background: rgba(122,92,255,.15);
+  color: #7a5cff;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all .2s;
+  padding: 0;
+}
+body.editing .v-add-page-btn {
+  display: flex;
+}
+.v-add-page-btn:hover {
+  background: #7a5cff;
+  color: #fff;
+  border-style: solid;
+  transform: scale(1.15);
+}
+.v-add-page-btn svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+}
+
+.keys-spacer {
+  width: 16px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  pointer-events: none;
+}
+
+/* ── Horizontally Scrollable Touch Strip ── */
+.strip-scroll {
+  margin: var(--g) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  border-radius: 16px;
+  background: var(--strip-bg);
+  box-shadow: var(--strip-shadow);
+  scrollbar-width: none;
+  width: 100%;
+  transition: background .3s, box-shadow .3s;
+}
+.strip-scroll::-webkit-scrollbar { display: none; }
+
+.strip {
+  display: flex;
+  width: max-content;
+}
+
+.seg {
+  width: var(--seg-w, 160px);
+  min-width: 70px;
+  flex: 0 0 var(--seg-w, 160px);
+  padding: clamp(8px, 2.2vw, 14px);
+  display: grid;
+  gap: 7px;
+  color: var(--strip-fg);
+  font-size: clamp(.6rem, 1.8vw, .85rem);
+  border-left: var(--strip-border);
+  transition: background .2s, color .2s;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.seg:first-child { border-left: 0; }
+.seg.hot { background: rgba(255,255,255,.08); }
+.seg .h { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.seg svg {
+  width: 1.5em;
+  height: 1.5em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seg .v { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--strip-num); }
+.meter { height: 6px; border-radius: 9px; background: var(--strip-meter-bg); overflow: hidden; }
+.meter i {
+  display: block;
+  height: 100%;
+  width: 50%;
+  border-radius: 9px;
+  background: linear-gradient(90deg, var(--c1), var(--c2));
+  transition: width .12s linear, opacity .2s;
+}
+.seg.mute { color: #ff7a95; }
+.seg.mute .meter i { opacity: .25; }
+
+/* Display Bar in Edit Mode */
+body.editing .seg {
+  position: relative;
+  cursor: pointer;
+}
+body.editing .seg::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255,255,255,.8);
+  pointer-events: none;
+  animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+}
+[data-theme="light"] body.editing .seg::before {
+  border-color: rgba(122,92,255,.85);
+}
+.seg-edit-pill {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: #7a5cff;
+  color: #fff;
+  font-size: .56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+}
+.add-dial-seg {
+  min-width: 110px !important;
+  border: 2px dashed color-mix(in srgb, var(--fg) 28%, transparent) !important;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  cursor: pointer;
+  opacity: .85;
+  transition: all .2s ease;
+  scroll-snap-align: start;
+}
+.add-dial-seg:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  border-color: #7a5cff !important;
+  color: #7a5cff;
+}
+.add-dial-seg svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+.add-dial-hint {
+  font-size: .72rem;
+  opacity: .75;
+}
+
+/* Dial Customizer Modal Styling */
+.dial-pv {
+  width: 90px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--strip-bg);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.45);
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--strip-fg);
+  font-size: .8rem;
+  flex: none;
+}
+.dial-pv .dpv-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  gap: 4px;
+}
+.dial-pv .dpv-h svg {
+  width: 1.3em;
+  height: 1.3em;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+}
+.dial-pv .meter {
+  height: 5px;
+  border-radius: 9px;
+  background: var(--strip-meter-bg);
+  overflow: hidden;
+}
+.dial-pv .meter i {
+  display: block;
+  height: 100%;
+  border-radius: 9px;
+  background: linear-gradient(90deg, var(--c1, #ff5a93), var(--c2, #ffb36b));
+}
+.dial-pv .dpv-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--strip-num);
+  font-size: .76rem;
+}
+.dial-role-pills {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.drole-btn {
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  color: var(--fg);
+  font-size: .82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.drole-btn:hover {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+.drole-btn[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--a, #7a5cff), var(--b, #6a4cf0));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px -3px var(--b, #6a4cf0);
+}
+.dial-actions-bar {
+  display: flex;
+  gap: 8px;
+}
+.dial-actions-bar button {
+  flex: 1;
+  font-size: .82rem;
+  padding: 9px 8px;
+  border-radius: 12px;
+}
+
+/* Grid & Pages Settings Button in Top Bar */
+.grid-btn {
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  background: rgba(127,140,190,.16);
+  color: var(--fg);
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  transition: all .2s ease;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: max-content;
+}
+body.editing .grid-btn {
+  display: inline-flex;
+}
+.grid-btn:hover {
+  background: rgba(127,140,190,.28);
+  border-color: #7a5cff;
+}
+.grid-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  flex-shrink: 0;
+}
+#grid-label {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Add Page Button Next to Page Dots */
+.add-page-btn {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  background: rgba(122,92,255,.18);
+  color: #7a5cff;
+  border: 1px dashed rgba(122,92,255,.55);
+  cursor: pointer;
+  transition: all .2s ease;
+  margin-left: 6px;
+}
+body.editing .add-page-btn {
+  display: inline-flex;
+}
+.add-page-btn:hover {
+  background: #7a5cff;
+  color: #fff;
+  border-style: solid;
+}
+
+/* Grid & Layout Sheet */
+.grid-pv {
+  width: 90px;
+  height: 64px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--strip-bg);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.4);
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.gpv-grid {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+}
+.gpv-cell {
+  background: linear-gradient(135deg, #a48aff, #6a4cf0);
+  border-radius: 4px;
+  opacity: .88;
+}
+
+.counter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.c-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  color: var(--fg);
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all .2s;
+}
+.c-btn:hover {
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+  border-color: #7a5cff;
+}
+.c-btn:active {
+  transform: scale(.92);
+}
+.c-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 24px;
+  text-align: center;
+}
+.grid-total-keys {
+  margin-left: auto;
+  font-size: .84rem;
+  font-weight: 600;
+  color: #7a5cff;
+}
+
+.presets-row {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.pr-btn {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  color: var(--dim);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+.pr-btn:hover, .pr-btn[aria-pressed="true"] {
+  background: #7a5cff;
+  color: #fff;
+  border-color: transparent;
+}
+
+.pages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 4px 0 10px;
+  padding-right: 4px;
+}
+.page-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  font-size: .82rem;
+  font-weight: 600;
+}
+.page-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.page-badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(122,92,255,.2);
+  color: #7a5cff;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.page-del-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,77,109,.12);
+  color: #ff4d6d;
+  cursor: pointer;
+  transition: all .2s;
+  border: 0;
+}
+.page-del-btn:hover {
+  background: #ff4d6d;
+  color: #fff;
+}
+.page-del-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+/* ── Knobs (Dynamic 4 or 2 Knobs) ── */
+.knobs {
+  display: grid;
+  grid-template-columns: repeat(var(--knob-cols, 4), 1fr);
+  gap: var(--g);
+  width: 100%;
+  max-width: var(--knobs-max-w, 100%);
+  margin: 0 auto;
+}
+.cell { display: grid; place-items: center; }
+
+.knob {
+  width: var(--knob-dim, 72%);
+  max-width: var(--knob-max-dim, 92px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 35% 28%, #4b4f6b, #14162a 70%);
+  box-shadow: 0 10px 16px -6px rgba(0,0,0,.6), inset 0 0 0 3px #1e2136, inset 0 0 0 5px rgba(255,255,255,.08);
+  touch-action: none;
+  cursor: ns-resize;
+  transition: box-shadow .2s;
+}
+.knob:active {
+  box-shadow: 0 4px 8px -4px rgba(0,0,0,.6), inset 0 0 0 3px #1e2136, inset 0 0 0 5px rgba(255,255,255,.2);
+}
+.knob .cap {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: transform .08s linear;
+  background: repeating-conic-gradient(rgba(255,255,255,.05) 0 6deg, transparent 6deg 12deg);
+}
+.knob .cap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 3px;
+  height: 18%;
+  margin-left: -1.5px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+}
+.knob.mute .cap::after {
+  background: #ff5c7f;
+  box-shadow: 0 0 8px #ff5c7f;
+}
+
+/* ── Deck & Cards Size Reduction Modes ── */
+body.size-mini {
+  --deck-max-width: 540px;
+  --card-gap: 8px;
+  --card-pad: 8px 6px 10px 6px;
+  --device-pad: 2.2% 2.8%;
+  --device-radius: 26px;
+  --seg-pad: 6px 8px;
+  --knob-dim: 56%;
+  --knob-max-dim: 64px;
+  --card-font-size: clamp(.58rem, 1.6vw, .8rem);
+  --strip-margin: 8px 0;
+}
+body.size-compact {
+  --deck-max-width: 650px;
+  --card-gap: 10px;
+  --card-pad: 10px 8px 12px 8px;
+  --device-pad: 2.8% 3.4%;
+  --device-radius: 30px;
+  --seg-pad: 8px 10px;
+  --knob-dim: 64%;
+  --knob-max-dim: 76px;
+  --card-font-size: clamp(.62rem, 1.8vw, .86rem);
+  --strip-margin: 10px 0;
+}
+body.size-large {
+  --deck-max-width: 860px;
+  --card-gap: 16px;
+  --card-pad: 16px 14px 18px 14px;
+  --device-pad: 4% 4.6%;
+}
+
+/* ── Card Aspect Ratio / Height Reduction ── */
+body.card-slim .key {
+  aspect-ratio: 1.25 / 1;
+}
+
+/* ── Display Section Reduction (2 Dials or Hidden) ── */
+body.disp-2-dials .knobs {
+  --knob-cols: 2;
+  --knobs-max-w: 52%;
+}
+body.disp-2-dials .cell:nth-child(n+3) {
+  display: none !important;
+}
+
+body.disp-hidden .strip-scroll,
+body.disp-hidden .knobs,
+body.disp-hidden .hint {
+  display: none !important;
+}
+body.disp-hidden .deck-keys-wrap {
+  margin-bottom: 6px;
+}
+
+@media (max-height: 760px) and (orientation: landscape) {
+  body:not(.size-large):not(.size-compact):not(.size-mini) {
+    --card-pad: 10px 8px 12px 8px;
+    --card-gap: 10px;
+    --seg-pad: 8px 10px;
+    --knob-dim: 64%;
+    --knob-max-dim: 74px;
+    --strip-margin: 10px 0;
+  }
+}
+
+.hint {
+  margin: 12px 6px 0;
+  color: var(--dim);
+  font-size: .84rem;
+  text-align: center;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  translate: -50% 20px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #10142a;
+  color: #fff;
+  font-weight: 500;
+  font-size: .88rem;
+  opacity: 0;
+  transition: opacity .25s, translate .25s;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.toast.show { opacity: 1; translate: -50% 0; }
+
+/* ── Modern Glass Customizer Sheet ── */
+.sbg {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(6,9,22,.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .3s, visibility 0s .3s;
+}
+.sheet {
+  --ln: color-mix(in srgb, var(--fg) 13%, transparent);
+  --fld: color-mix(in srgb, var(--fg) 6.5%, transparent);
+  --a: #9a7bff;
+  --b: #6a4cf0;
+  position: fixed;
+  z-index: 2001;
+  left: 50%;
+  top: 50%;
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--bg1) 90%, transparent);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid var(--ln);
+  box-shadow: 0 40px 90px -24px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.25);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  translate: -50% -45%;
+  scale: .96;
+  transition: translate .45s cubic-bezier(.2,.9,.3,1.1), scale .45s cubic-bezier(.2,.9,.3,1.1), opacity .3s, visibility 0s .45s;
+  color: var(--fg);
+}
+body.so .sbg, body.dso .sbg, body.gso .sbg {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .3s;
+}
+body.so .sheet:not(.dial-sheet):not(.grid-sheet), body.dso #dial-sheet, body.gso #grid-sheet {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  translate: -50% -50%;
+  scale: 1;
+  transition: translate .45s cubic-bezier(.2,.9,.3,1.1), scale .45s cubic-bezier(.2,.9,.3,1.1), opacity .3s;
+}
+.sh-head { display: flex; align-items: center; gap: 16px; }
+.pvk {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  font-size: .74rem;
+  border-radius: 20px;
+  animation: none;
+  pointer-events: none;
+}
+.sh-ttl { flex: 1; min-width: 0; }
+.sh-ttl h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--fg);
+}
+.sh-ttl p {
+  color: var(--dim);
+  font-size: .92rem;
+  margin-top: 2px;
+}
+.sh-x {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--fld);
+  color: var(--fg);
+  transition: background .2s, transform .2s;
+  cursor: pointer;
+}
+.sh-x:hover { background: var(--ln); }
+.sh-x:active { transform: scale(.9); }
+.sh-x svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.fl-t {
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 18px 0 8px;
+}
+.sh-in {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--ln);
+  background: var(--fld);
+  color: inherit;
+  font: inherit;
+  outline: 0;
+  transition: border-color .2s, box-shadow .2s;
+}
+.sh-in::placeholder { color: var(--dim); opacity: .8; }
+.sh-in:focus {
+  border-color: #8a6cff;
+  box-shadow: 0 0 0 4px rgba(138,108,255,.25);
+}
+.sh-in.sm { margin-top: 10px; padding: 10px 14px; font-size: .9rem; }
+.icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 8px;
+}
+.ic-t {
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--fld);
+  color: var(--fg);
+  transition: background .2s, transform .2s, color .2s, box-shadow .25s;
+  cursor: pointer;
+}
+.ic-t svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ic-t:hover { background: var(--ln); }
+.ic-t:active { transform: scale(.9); }
+.ic-t[aria-pressed=true] {
+  background: linear-gradient(150deg, var(--a), var(--b));
+  color: #fff;
+  box-shadow: 0 8px 18px -8px var(--b);
+}
+.swr { display: flex; gap: 12px; flex-wrap: wrap; }
+.sw-c {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--a), var(--b));
+  transition: transform .25s cubic-bezier(.3,1.5,.5,1), outline-offset .2s;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  cursor: pointer;
+}
+.sw-c:hover { transform: scale(1.12); }
+.sw-c[aria-pressed=true] {
+  outline-color: var(--fg);
+  outline-offset: 3px;
+  transform: scale(1.05);
+}
+.sh-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+}
+.sh-seg button {
+  flex: 1;
+  padding: 9px 4px;
+  border-radius: 12px;
+  font-size: .84rem;
+  font-weight: 500;
+  color: var(--dim);
+  transition: background .25s, color .25s, box-shadow .25s;
+  cursor: pointer;
+}
+.sh-seg button[aria-pressed=true] {
+  background: linear-gradient(135deg, #a48aff, #6a4cf0);
+  color: #fff;
+  box-shadow: 0 6px 14px -6px #6a4cf0;
+}
+#aw { margin-top: 12px; }
+.qp { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.qp button {
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  color: var(--fg);
+  font-size: .82rem;
+  font-weight: 500;
+  transition: background .2s, transform .15s;
+  cursor: pointer;
+}
+.qp button:hover { background: var(--ln); }
+.qp button:active { transform: scale(.94); }
+.sh-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.sh-foot span { flex: 1; }
+.gh {
+  padding: 11px 16px;
+  border-radius: 999px;
+  font-weight: 500;
+  color: var(--dim);
+  transition: background .2s, color .2s;
+  cursor: pointer;
+}
+.gh:hover { background: var(--fld); color: var(--fg); }
+.gh.warn:hover { color: #ff5c7f; }
+.save {
+  padding: 11px 26px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #a48aff, #6a4cf0);
+  box-shadow: 0 12px 24px -10px #6a4cf0;
+  transition: transform .2s, box-shadow .2s;
+  cursor: pointer;
+}
+.save:hover { transform: translateY(-1px); box-shadow: 0 16px 28px -10px #6a4cf0; }
+.save:active { transform: scale(.96); }
+
+/* ── Steps Multi-task Macro Builder ── */
+.steps { display: grid; }
+.st {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  margin-bottom: 22px;
+  animation: in .35s cubic-bezier(.2,.9,.3,1.1) backwards;
+}
+.st:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 25px;
+  top: 100%;
+  height: 22px;
+  border-left: 2px dashed var(--ln);
+}
+.st:last-child { margin-bottom: 12px; }
+.stn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(150deg, var(--a), var(--b));
+}
+.stb { flex: 1; min-width: 0; }
+.stt { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.stt b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); font-size: .9rem; }
+.sti {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  color: var(--fg);
+}
+.sti svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.stx { display: flex; gap: 2px; }
+.stx button {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  transition: background .2s, color .2s;
+  cursor: pointer;
+}
+.stx button:hover { background: var(--ln); color: var(--fg); }
+.stx button[data-x]:hover { color: #ff5c7f; }
+.stx svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.st .sh-in.sm { margin-top: 8px; }
+.st-e {
+  padding: 18px;
+  text-align: center;
+  color: var(--dim);
+  font-size: .9rem;
+  border: 1.5px dashed var(--ln);
+  border-radius: 18px;
+  margin-bottom: 12px;
+}
+.addstep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--fg);
+  background: var(--fld);
+  border: 1.5px dashed color-mix(in srgb, var(--fg) 25%, transparent);
+  transition: background .2s, border-color .2s;
+  cursor: pointer;
+}
+.addstep:hover { background: var(--ln); border-color: var(--b); }
+.addstep svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.fl-t em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--dim); margin-left: 6px; }
+
+/* Multi-step key badge & running animation */
+.key .mb {
+  position: absolute;
+  bottom: 7%;
+  right: 8%;
+  font-size: .56rem;
+  font-style: normal;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: rgba(0,0,0,.35);
+  color: #fff;
+  font-weight: 600;
+  pointer-events: none;
+}
+.key.run { animation: runp 1s ease-in-out infinite; }
+@keyframes runp {
+  0% { box-shadow: 0 0 0 0 rgba(255,255,255,.85); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+
+/* ── Action Catalog Picker Modal ── */
+.pkr {
+  --ln: color-mix(in srgb, var(--fg) 13%, transparent);
+  --fld: color-mix(in srgb, var(--fg) 6.5%, transparent);
+  position: fixed;
+  z-index: 2002;
+  left: 50%;
+  top: 50%;
+  width: min(520px, calc(100vw - 24px));
+  height: min(640px, calc(100dvh - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--bg1) 92%, transparent);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid var(--ln);
+  box-shadow: 0 40px 90px -24px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.25);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  translate: -50% -44%;
+  scale: .96;
+  transition: translate .45s cubic-bezier(.2,.9,.3,1.1), scale .45s cubic-bezier(.2,.9,.3,1.1), opacity .25s, visibility 0s .45s;
+  color: var(--fg);
+}
+body.pk .pkr {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  translate: -50% -50%;
+  scale: 1;
+  transition: translate .45s cubic-bezier(.2,.9,.3,1.1), scale .45s cubic-bezier(.2,.9,.3,1.1), opacity .25s;
+}
+body.pk.so .sheet {
+  opacity: 0;
+  scale: .94;
+  pointer-events: none;
+}
+.pk-top { display: flex; gap: 10px; align-items: center; }
+.pk-cats {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+  padding-bottom: 2px;
+}
+.pk-cats::-webkit-scrollbar { display: none; }
+.pk-cats button {
+  flex: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: .84rem;
+  font-weight: 500;
+  color: var(--dim);
+  background: var(--fld);
+  border: 1px solid var(--ln);
+  transition: background .2s, color .2s;
+  cursor: pointer;
+}
+.pk-cats button[aria-pressed=true] {
+  background: linear-gradient(135deg, #a48aff, #6a4cf0);
+  color: #fff;
+  border-color: transparent;
+}
+.pk-list { flex: 1; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+.pk-h {
+  position: sticky;
+  top: 0;
+  padding: 12px 6px 6px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--dim);
+  background: color-mix(in srgb, var(--bg1) 85%, transparent);
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+.pk-i {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 14px;
+  text-align: left;
+  transition: background .15s, transform .15s;
+  cursor: pointer;
+  color: var(--fg);
+}
+.pk-i:hover, .pk-i:focus-visible { background: var(--fld); }
+.pk-i:active { transform: scale(.98); }
+.pk-i span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-i em { font-style: normal; color: var(--dim); font-size: .78rem; }
+.pk-note {
+  margin: 14px 4px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--ln);
+  border-radius: 14px;
+  color: var(--dim);
+  font-size: .84rem;
+}
+
+@media(max-width: 560px) {
+  .sheet, .dial-sheet, .grid-sheet {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    border-radius: 28px 28px 0 0;
+    translate: 0 40px;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  }
+  body.so .sheet:not(.dial-sheet):not(.grid-sheet), body.dso #dial-sheet, body.gso #grid-sheet { translate: 0 0; }
+  .pkr {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 88dvh;
+    border-radius: 28px 28px 0 0;
+    translate: 0 40px;
+  }
+  body.pk .pkr { translate: 0 0; }
+}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="device">
+    <!-- Inside-the-Deck Top Bar -->
+    <div class="device-top">
+      <div class="device-top-left">
+        <div class="conn-led conn" id="sb" title="Connecting..."></div>
+      </div>
+      <div class="device-top-center">
+        <div class="brand">DECK<b>+</b></div>
+        <div class="stat" id="stat"></div>
+      </div>
+      <div class="device-top-right">
+        <button class="grid-btn" id="grid-btn" title="Deck grid layout & pages">
+          <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+          <span id="grid-label">4 × 2</span>
+        </button>
+        <button class="edit" id="edt" aria-pressed="false">Edit</button>
+        <button class="thm-btn" id="thm" title="Toggle theme">🌓</button>
+      </div>
+    </div>
+
+    <!-- Main Keys Section with Vertical Page Navigation on Left Edge -->
+    <div class="deck-keys-wrap" id="deck-keys-wrap">
+      <div class="v-page-nav" id="v-page-nav" title="Page navigation">
+        <div class="v-page-dots" id="v-page-dots"></div>
+        <button type="button" class="v-add-page-btn" id="v-add-page-btn" title="Add new page">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="keys-slider" id="keys-slider"></div>
+      <div class="keys-spacer" aria-hidden="true"></div>
+    </div>
+
+    <!-- Horizontally Scrollable Touch Strip -->
+    <div class="strip-scroll" id="strip-scroll">
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <!-- Exactly 4 Knobs at the bottom -->
+    <div class="knobs" id="knobs">
+      <div class="cell"><button class="knob" data-slot="0" aria-label="Dial 1"><span class="cap"></span></button></div>
+      <div class="cell"><button class="knob" data-slot="1" aria-label="Dial 2"><span class="cap"></span></button></div>
+      <div class="cell"><button class="knob" data-slot="2" aria-label="Dial 3"><span class="cap"></span></button></div>
+      <div class="cell"><button class="knob" data-slot="3" aria-label="Dial 4"><span class="cap"></span></button></div>
+    </div>
+  </div>
+
+  <p class="hint" id="bottom-hint">Swipe keys horizontally · Scroll display bar · 4 knobs match visible items</p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<!-- Modern Glass Sheet Customizer -->
+<div class="sbg" id="sbg"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="stitle">
+  <div class="sh-head">
+    <div id="pv" class="key pvk"></div>
+    <div class="sh-ttl">
+      <h2 id="stitle">Customize key</h2>
+      <p id="ssub"></p>
+    </div>
+    <button class="sh-x" id="sx" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="fl-t">Label</div>
+  <input class="sh-in" id="fl" maxlength="14" autocomplete="off" placeholder="e.g. Mic, Calc, Discord">
+  
+  <div class="fl-t">Icon</div>
+  <div class="icons" id="icons"></div>
+  <input class="sh-in sm" id="emo" maxlength="4" placeholder="Or type an emoji" autocomplete="off">
+  
+  <div class="fl-t">Color</div>
+  <div class="swr" id="sws"></div>
+  
+  <div class="fl-t">When pressed <em id="stc"></em></div>
+  <div class="steps" id="steps"></div>
+  <button class="addstep" id="addstep">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add action
+  </button>
+  
+  <div class="sh-foot">
+    <button class="gh warn" id="reset">Reset</button>
+    <button class="gh" id="clear-btn" title="Clear this button to an empty (+) slot">Clear to (+)</button>
+    <span></span>
+    <button class="gh" id="scx">Cancel</button>
+    <button class="save" id="ssave">Save key</button>
+  </div>
+</section>
+
+<!-- Action Catalog & App Picker Modal -->
+<section class="pkr" id="pkr" role="dialog" aria-modal="true" aria-label="Choose an action">
+  <div class="pk-top">
+    <button class="sh-x" id="pkb" aria-label="Back">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <input class="sh-in" id="pks" placeholder="Search apps and actions" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="pk-cats" id="pkc"></div>
+  <div class="pk-list" id="pkl"></div>
+</section>
+
+<!-- Modern Glass Dial Customizer Sheet -->
+<section class="sheet dial-sheet" id="dial-sheet" role="dialog" aria-modal="true" aria-labelledby="dial-title">
+  <div class="sh-head">
+    <div id="dial-pv" class="dial-pv">
+      <div class="dpv-h"><span id="dpv-name">Mic</span><span id="dpv-ic"></span></div>
+      <div class="meter"><i id="dpv-meter" style="width: 75%;"></i></div>
+      <div class="dpv-val" id="dpv-val">75%</div>
+    </div>
+    <div class="sh-ttl">
+      <h2 id="dial-title">Customize dial</h2>
+      <p id="dial-sub">Editing channel</p>
+    </div>
+    <button class="sh-x" id="dial-sx" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="fl-t">Channel Label</div>
+  <input class="sh-in" id="dial-fl" maxlength="14" autocomplete="off" placeholder="e.g. Mic, Headset, Spotify, Lights">
+
+  <div class="fl-t">Control Type / Role</div>
+  <div class="dial-role-pills" id="dial-roles">
+    <button type="button" class="drole-btn" data-role="master">🎧 Master Audio</button>
+    <button type="button" class="drole-btn" data-role="mic">🎙️ Microphone</button>
+    <button type="button" class="drole-btn" data-role="app">🎵 App Volume</button>
+    <button type="button" class="drole-btn" data-role="lights">💡 Smart Lights</button>
+  </div>
+
+  <div class="fl-t">Icon</div>
+  <div class="icons" id="dial-icons"></div>
+  <input class="sh-in sm" id="dial-emo" maxlength="4" placeholder="Or type an emoji (e.g. 🎧, 🎙️, 💡, 🎵)" autocomplete="off">
+
+  <div class="fl-t">Color Gradient</div>
+  <div class="swr" id="dial-sws"></div>
+
+  <div class="fl-t">Reorder & Actions</div>
+  <div class="dial-actions-bar">
+    <button type="button" class="gh" id="dial-move-left" title="Move channel left">← Move Left</button>
+    <button type="button" class="gh" id="dial-move-right" title="Move channel right">Move Right →</button>
+    <button type="button" class="gh warn" id="dial-del-btn" title="Delete channel">🗑️ Delete</button>
+  </div>
+
+  <div class="sh-foot">
+    <button class="gh" id="dial-scx">Cancel</button>
+    <button class="save" id="dial-save">Save Dial</button>
+  </div>
+</section>
+
+<!-- Modern Glass Deck Grid & Pages Customizer Sheet -->
+<section class="sheet grid-sheet" id="grid-sheet" role="dialog" aria-modal="true" aria-labelledby="grid-sheet-title">
+  <div class="sh-head">
+    <div class="grid-pv" id="grid-pv">
+      <div class="gpv-grid" id="gpv-grid"></div>
+    </div>
+    <div class="sh-ttl">
+      <h2 id="grid-sheet-title">Grid & Pages</h2>
+      <p id="grid-sheet-sub">Configure deck rows, columns and pages</p>
+    </div>
+    <button class="sh-x" id="grid-sx" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="fl-t">Columns (Left to Right)</div>
+  <div class="counter-row">
+    <button type="button" class="c-btn" id="col-dec" aria-label="Decrease columns">−</button>
+    <span class="c-val" id="col-val">4</span>
+    <button type="button" class="c-btn" id="col-inc" aria-label="Increase columns">+</button>
+    <div class="presets-row">
+      <button type="button" class="pr-btn" data-cols="3" data-rows="2">3 × 2</button>
+      <button type="button" class="pr-btn" data-cols="4" data-rows="2">4 × 2</button>
+      <button type="button" class="pr-btn" data-cols="5" data-rows="3">5 × 3</button>
+      <button type="button" class="pr-btn" data-cols="6" data-rows="2">6 × 2</button>
+    </div>
+  </div>
+
+  <div class="fl-t">Rows (Top to Bottom)</div>
+  <div class="counter-row">
+    <button type="button" class="c-btn" id="row-dec" aria-label="Decrease rows">−</button>
+    <span class="c-val" id="row-val">2</span>
+    <button type="button" class="c-btn" id="row-inc" aria-label="Increase rows">+</button>
+    <span class="grid-total-keys" id="grid-total-keys">8 keys per page</span>
+  </div>
+
+  <div class="fl-t">Cards & Deck Size (Reduce or Enlarge)</div>
+  <div class="sh-seg" id="deck-size-presets">
+    <button type="button" class="sz-btn" data-size="mini">Mini (70%)</button>
+    <button type="button" class="sz-btn" data-size="compact">Compact (85%)</button>
+    <button type="button" class="sz-btn" data-size="normal">Standard (100%)</button>
+    <button type="button" class="sz-btn" data-size="large">Large (110%)</button>
+  </div>
+
+  <div class="fl-t">Card Height / Aspect Ratio</div>
+  <div class="sh-seg" id="card-shape-presets">
+    <button type="button" class="cshape-btn" data-shape="square">Square (1:1)</button>
+    <button type="button" class="cshape-btn" data-shape="slim">Slim (Saves Height)</button>
+  </div>
+
+  <div class="fl-t">Display Section (Dials & Knobs)</div>
+  <div class="sh-seg" id="disp-mode-presets">
+    <button type="button" class="dmode-btn" data-disp="4">4 Dials (Full)</button>
+    <button type="button" class="dmode-btn" data-disp="2">2 Dials (Compact)</button>
+    <button type="button" class="dmode-btn" data-disp="hidden">Hide Display Bar</button>
+  </div>
+
+  <div class="fl-t">Pages / Sections (<span id="pages-count-lbl">3 pages</span>)</div>
+  <div class="pages-list" id="pages-list"></div>
+  <button type="button" class="addstep" id="modal-add-page-btn">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add New Page
+  </button>
+
+  <div class="sh-foot">
+    <button class="gh warn" id="grid-reset-btn">Reset Defaults</button>
+    <button class="gh" id="grid-scx">Cancel</button>
+    <button class="save" id="grid-save-btn">Apply Layout</button>
+  </div>
+</section>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ── SVG Paths ── */
+const P = {
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
+  kbd: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8',
+  term: 'M4 5h16v14H4zM8 10l3 2-3 2M13 14h3',
+  power: 'M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0',
+  clock: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 8v4l3 2',
+  bolt: 'M13 3L5 13h6l-1 8 8-10h-6z',
+  home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z',
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4',
+  live: 'M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0',
+  rec: 'M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0-12 0',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  chat: 'M4 5h16v11H9l-5 4z',
+  clip: 'M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M8.5 8l11 9M8.5 16l11-9',
+  cam: 'M4 8h4l2-3h4l2 3h4v11H4zM12 14m-3.5 0a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0',
+  play: 'M8 5v14l11-7z',
+  pause: 'M8 5v14M16 5v14',
+  back: 'M15 5l-7 7 7 7',
+  wave: 'M3 12h2l2-6 3 12 3-9 2 3h6',
+  head: 'M4 15v-3a8 8 0 0 1 16 0v3M4 15h3v5H5a1 1 0 0 1-1-1zM20 15h-3v5h2a1 1 0 0 0 1-1z',
+  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z',
+  game: 'M6 8h12a4 4 0 0 1 4 4v2a3 3 0 0 1-5.5 1.6L15 14H9l-1.5 1.6A3 3 0 0 1 2 14v-2a4 4 0 0 1 4-4zM7 10.5v3M5.5 12h3',
+  screen: 'M3 5h18v12H3zM8 21h8',
+  star: 'M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8z',
+  coffee: 'M5 8h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM16 9h2a2 2 0 0 1 0 4h-2',
+  moon: 'M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z',
+  plus: 'M12 5v14M5 12h14'
+};
+
+const ic = n => {
+  if (P[n]) return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"${n==='play'?' fill="#fff"':''}/></svg>`;
+  return `<span class="emoji-ic emo">${n||'🔘'}</span>`;
+};
+
+const C = {
+  pink: ['#ff5a93','#a83dff'],
+  purple: ['#a48aff','#6a4cf0'],
+  cyan: ['#34d6ff','#2a86ff'],
+  orange: ['#ffb36b','#ff5f6d'],
+  green: ['#4fe3a3','#18a0a8'],
+  black: ['#2b2e44','#0d0e18']
+};
+
+/* ── Default Key Definitions (24 Keys across 3 horizontal pages) ── */
+const DK = {
+  // Page 1 (8 Keys)
+  mic:   { l: 'Mic',     i: 'mic',    c: C.pink,   t: 'toggle', alt: { l: 'Muted', i: 'mic' }, action: 'media',  payload: { action: 'micmute' } },
+  live:  { l: 'Go live', i: 'live',   c: C.purple, t: 'toggle', alt: { l: 'Live',  i: 'live' }, action: 'obs',    payload: { requestType: 'ToggleStream' } },
+  rec:   { l: 'Record',  i: 'rec',    c: C.cyan,   t: 'toggle', alt: { l: 'Stop',  i: 'rec' },  action: 'obs',    payload: { requestType: 'ToggleRecord' } },
+  scenes:{ l: 'Scenes',  i: 'folder', c: C.orange, t: 'folder', to: 'scenes' },
+  chat:  { l: 'Chat',    i: 'chat',   c: C.purple, t: 'tap',    msg: 'Message sent', action: 'macro', payload: { text: 'Good game everyone! GG', pressEnter: true } },
+  clip:  { l: 'Clip',    i: 'clip',   c: C.pink,   t: 'tap',    msg: 'Clipped!', action: 'hotkey', payload: { modifiers: ['alt'], key: 'f10' } },
+  shot:  { l: 'Snap',    i: 'cam',    blk: 1,      t: 'tap',    msg: 'Snip Tool', action: 'system', payload: { action: 'snip' } },
+  music: { l: 'Play',    i: 'play',   c: C.green,  t: 'toggle', alt: { l: 'Pause', i: 'pause' }, action: 'media',  payload: { action: 'playPause' } },
+
+  // Page 2 (8 Keys)
+  lock:  { l: 'Lock',    i: 'moon',   c: C.orange, t: 'tap',    msg: 'PC Locked', action: 'system', payload: { action: 'lock' } },
+  sleep: { l: 'Sleep',   i: 'moon',   c: C.black,  blk: 1,      t: 'tap',    msg: 'Sleeping PC...', action: 'system', payload: { action: 'sleep' } },
+  desk:  { l: 'Desktop', i: 'screen', c: C.cyan,   t: 'tap',    msg: 'Show Desktop', action: 'system', payload: { action: 'desktop' } },
+  calc:  { l: 'Calc',    i: 'game',   c: C.green,  t: 'tap',    msg: 'Calculator', action: 'launch', payload: { path: 'calc.exe' } },
+  notepad:{ l: 'Notepad',i: 'chat',   c: C.purple, t: 'tap',    msg: 'Notepad', action: 'launch', payload: { path: 'notepad.exe' } },
+  term:  { l: 'Terminal',i: 'screen', c: C.black,  blk: 1,      t: 'tap',    msg: 'Terminal', action: 'launch', payload: { path: 'powershell.exe' } },
+  copy:  { l: 'Copy',    i: 'clip',   c: C.cyan,   t: 'tap',    msg: 'Copied!', action: 'hotkey', payload: { modifiers: ['ctrl'], key: 'c' } },
+  paste: { l: 'Paste',   i: 'clip',   c: C.green,  t: 'tap',    msg: 'Pasted!', action: 'hotkey', payload: { modifiers: ['ctrl'], key: 'v' } },
+
+  // Page 3 (8 Keys)
+  taskmgr:{ l: 'TaskMgr',i: 'game',   c: C.purple, t: 'tap',    msg: 'Task Manager', action: 'system', payload: { action: 'taskmgr' } },
+  explorer:{ l: 'Files', i: 'folder', c: C.orange, t: 'tap',    msg: 'File Explorer', action: 'hotkey', payload: { modifiers: ['win'], key: 'e' } },
+  settings:{ l: 'Settings', i: 'bulb',c: C.black,  blk: 1,      t: 'tap',    msg: 'Settings', action: 'launch', payload: { path: 'settings' } },
+  fscreen:{ l: 'Fullscreen', i: 'screen', c: C.cyan, t: 'tap',  msg: 'Fullscreen', action: 'hotkey', payload: { modifiers: [], key: 'f11' } },
+  discord:{ l: 'Discord', i: 'chat',  c: C.purple, t: 'tap',    msg: 'Discord', action: 'launch', payload: { path: 'discord.exe' } },
+  spotify:{ l: 'Spotify', i: 'wave',  c: C.green,  t: 'tap',    msg: 'Spotify', action: 'launch', payload: { path: 'spotify.exe' } },
+  steam:  { l: 'Steam',   i: 'game',  c: C.cyan,   t: 'tap',    msg: 'Steam', action: 'launch', payload: { path: 'steam.exe' } },
+  chrome: { l: 'Chrome',  i: 'screen',c: C.pink,   t: 'tap',    msg: 'Browser', action: 'launch', payload: { path: 'https://google.com' } }
+};
+
+let T = {};
+try {
+  const s = JSON.parse(localStorage.getItem('dp_keys'));
+  if (s && typeof s === 'object') T = Object.assign({}, DK, s);
+  else T = Object.assign({}, DK);
+} catch (_) {
+  T = Object.assign({}, DK);
+}
+
+const S = [
+  ['game', 'Gameplay', C.purple],
+  ['chat', 'Chatting', C.pink],
+  ['cam', 'Desk cam', C.cyan],
+  ['screen', 'Screen', C.green],
+  ['star', 'Intro', C.orange],
+  ['coffee', 'BRB', C.pink],
+  ['moon', 'Outro', C.purple]
+];
+
+/* ── Dynamic Grid & Pages Layout ── */
+let deckCols = 4;
+let deckRows = 2;
+try {
+  const c = parseInt(localStorage.getItem('dp_deck_cols'), 10);
+  const r = parseInt(localStorage.getItem('dp_deck_rows'), 10);
+  if (!isNaN(c) && c >= 2 && c <= 6) deckCols = c;
+  if (!isNaN(r) && r >= 1 && r <= 4) deckRows = r;
+} catch (_) {}
+
+document.documentElement.style.setProperty('--deck-cols', deckCols);
+document.documentElement.style.setProperty('--deck-rows', deckRows);
+
+const DEFAULT_PAGES_MAIN = [
+  ['mic', 'live', 'rec', 'scenes', 'chat', 'clip', 'shot', 'music'],
+  ['lock', 'sleep', 'desk', 'calc', 'notepad', 'term', 'copy', 'paste'],
+  ['taskmgr', 'explorer', 'settings', 'fscreen', 'discord', 'spotify', 'steam', 'chrome']
+];
+
+const EXTRA_KEY_POOL = [
+  { l: 'Camera',    i: 'cam',     c: C.cyan,   action: 'hotkey', payload: { modifiers: ['win'], key: 'printscreen' } },
+  { l: 'Display',   i: 'screen',  c: C.purple, action: 'system', payload: { action: 'fscreen' } },
+  { l: 'BRB',       i: 'coffee',  c: C.pink,   action: 'obs',    payload: { action: 'scene_brb' } },
+  { l: 'Mute PC',   i: 'mute',    c: C.pink,   action: 'media',  payload: { action: 'mute' } },
+  { l: 'Browser',   i: 'globe',   c: C.cyan,   action: 'launch', payload: { path: 'https://google.com' } },
+  { l: 'Calc',      i: 'calc',    c: C.green,  action: 'launch', payload: { path: 'calc.exe' } },
+  { l: 'Notepad',   i: 'notepad', c: C.orange, action: 'launch', payload: { path: 'notepad.exe' } },
+  { l: 'Terminal',  i: 'term',    c: C.purple, action: 'launch', payload: { path: 'wt.exe' } },
+  { l: 'Vol +',     i: 'vol',     c: C.green,  action: 'media',  payload: { action: 'volup' } },
+  { l: 'Vol -',     i: 'vol',     c: C.pink,   action: 'media',  payload: { action: 'voldn' } },
+  { l: 'Play/Pause',i: 'play',    c: C.cyan,   action: 'media',  payload: { action: 'play' } },
+  { l: 'Next Track',i: 'step',    c: C.purple, action: 'media',  payload: { action: 'next' } },
+  { l: 'Prev Track',i: 'step',    c: C.orange, action: 'media',  payload: { action: 'prev' } },
+  { l: 'Discord',   i: 'chat',    c: C.purple, action: 'launch', payload: { path: 'discord' } },
+  { l: 'Steam',     i: 'game',    c: C.cyan,   action: 'launch', payload: { path: 'steam' } },
+  { l: 'Game Mode', i: 'game',    c: C.green,  action: 'system', payload: { action: 'gamemode' } },
+  { l: 'Bookmark',  i: 'star',    c: C.orange, action: 'hotkey', payload: { modifiers: ['ctrl'], key: 'd' } },
+  { l: 'Desk Light',i: 'bulb',    c: C.cyan,   action: 'launch', payload: { path: '' } }
+];
+
+let PAGES_MAIN_KEYS = [];
+try {
+  const savedPages = JSON.parse(localStorage.getItem('dp_deck_pages'));
+  if (Array.isArray(savedPages) && savedPages.length > 0) {
+    PAGES_MAIN_KEYS = savedPages;
+  } else {
+    PAGES_MAIN_KEYS = JSON.parse(JSON.stringify(DEFAULT_PAGES_MAIN));
+  }
+} catch (_) {
+  PAGES_MAIN_KEYS = JSON.parse(JSON.stringify(DEFAULT_PAGES_MAIN));
+}
+
+function getKeysPerPage() {
+  return deckCols * deckRows;
+}
+
+function ensurePageKeys(pIdx) {
+  if (!PAGES_MAIN_KEYS[pIdx]) {
+    PAGES_MAIN_KEYS[pIdx] = [];
+  }
+  const page = PAGES_MAIN_KEYS[pIdx];
+  const targetLen = getKeysPerPage();
+  let modified = false;
+
+  // On custom/added pages (page 4 and beyond), convert any previously auto-populated placeholder keys into clean '+' keys
+  if (pIdx >= 3) {
+    for (let k = 0; k < page.length; k++) {
+      const kId = page[k];
+      if (T[kId] && !T[kId].empty && (!T[kId].s || T[kId].s.length === 0)) {
+        if (kId.startsWith('p') && kId.includes('_k')) {
+          T[kId] = {
+            l: '',
+            i: 'plus',
+            c: C.purple,
+            t: 'empty',
+            empty: true,
+            action: 'empty',
+            s: []
+          };
+          modified = true;
+        }
+      }
+    }
+  }
+
+  while (page.length < targetLen) {
+    const kIdx = page.length;
+    const newId = `p${pIdx + 1}_k${kIdx + 1}_${Date.now().toString(36).slice(-3)}_${kIdx}`;
+    T[newId] = {
+      l: '',
+      i: 'plus',
+      c: C.purple,
+      t: 'empty',
+      empty: true,
+      action: 'empty',
+      s: []
+    };
+    page.push(newId);
+    modified = true;
+  }
+  if (modified) {
+    try { localStorage.setItem('dp_keys', JSON.stringify(T)); } catch (_) {}
+  }
+  return page.slice(0, targetLen);
+}
+
+function savePagesData() {
+  try {
+    localStorage.setItem('dp_deck_pages', JSON.stringify(PAGES_MAIN_KEYS));
+    localStorage.setItem('dp_deck_cols', String(deckCols));
+    localStorage.setItem('dp_deck_rows', String(deckRows));
+    localStorage.setItem('dp_keys', JSON.stringify(T));
+  } catch (_) {}
+}
+
+function addNewDeckPage() {
+  const newPIdx = PAGES_MAIN_KEYS.length;
+  const newPage = [];
+  const targetLen = getKeysPerPage();
+  for (let kIdx = 0; kIdx < targetLen; kIdx++) {
+    const newId = `p${newPIdx + 1}_k${kIdx + 1}_${Date.now().toString(36).slice(-3)}_${kIdx}`;
+    T[newId] = {
+      l: '',
+      i: 'plus',
+      c: C.purple,
+      t: 'empty',
+      empty: true,
+      action: 'empty',
+      s: []
+    };
+    newPage.push(newId);
+  }
+  PAGES_MAIN_KEYS.push(newPage);
+  savePagesData();
+  renderKeys();
+  goToKeysPage(newPIdx);
+  toast(`Added Page ${newPIdx + 1} with (+) buttons!`);
+}
+
+function removeDeckPage(pIdx) {
+  if (PAGES_MAIN_KEYS.length <= 1) {
+    toast('Cannot delete the only page');
+    return;
+  }
+  PAGES_MAIN_KEYS.splice(pIdx, 1);
+  if (currentKeysPage >= PAGES_MAIN_KEYS.length) {
+    currentKeysPage = Math.max(0, PAGES_MAIN_KEYS.length - 1);
+  }
+  savePagesData();
+  renderKeys();
+  if (typeof updateGridSheetUI === 'function') updateGridSheetUI();
+  goToKeysPage(currentKeysPage);
+  toast(`Page ${pIdx + 1} deleted`);
+}
+
+const on = {};
+const scene = { cur: 0 };
+let currentView = 'main'; // 'main' or 'scenes'
+let isEditMode = false;
+let editKeyId = null;
+
+/* ── Display Strip Channels ── */
+const DEFAULT_DIALS = [
+  { n: 'Mic',     i: 'mic',   v: 72, m: 0, c: ['#ff5a93', '#ffb36b'], role: 'mic' },
+  { n: 'Game',    i: 'game',  v: 55, m: 0, c: ['#6a8bff', '#34d6ff'], role: 'master' },
+  { n: 'Headset', i: 'head',  v: 80, m: 0, c: ['#a48aff', '#ff5a93'], role: 'master' },
+  { n: 'Lights',  i: 'bulb',  v: 40, m: 0, c: ['#ffcf6a', '#ff8a4f'], role: 'lights' },
+  { n: 'Music',   i: 'play',  v: 60, m: 0, c: ['#4fe3a3', '#18a0a8'], role: 'master' },
+  { n: 'Discord', i: 'chat',  v: 85, m: 0, c: ['#a48aff', '#6a4cf0'], role: 'mic' },
+  { n: 'Browser', i: 'screen',v: 70, m: 0, c: ['#34d6ff', '#6a8bff'], role: 'master' },
+  { n: 'System',  i: 'moon',  v: 50, m: 0, c: ['#ff5a93', '#ff5f6d'], role: 'master' }
+];
+
+let D = [];
+try {
+  const customD = JSON.parse(localStorage.getItem('dp_dials_custom'));
+  if (Array.isArray(customD) && customD.length >= 4) {
+    D = customD;
+  } else {
+    D = JSON.parse(JSON.stringify(DEFAULT_DIALS));
+  }
+} catch (_) {
+  D = JSON.parse(JSON.stringify(DEFAULT_DIALS));
+}
+
+// Restore saved channel volumes & mute states
+try {
+  const savedD = JSON.parse(localStorage.getItem('dp_dials_state'));
+  if (Array.isArray(savedD)) {
+    savedD.forEach((savedItem, i) => {
+      if (D[i] && savedItem && typeof savedItem.v === 'number') {
+        D[i].v = Math.max(0, Math.min(100, Math.round(savedItem.v)));
+        if (D[i].role === 'lights') {
+          D[i].m = 0;
+        } else {
+          D[i].m = (D[i].v === 0) ? 1 : (savedItem.m ? 1 : 0);
+        }
+      }
+    });
+  }
+} catch (_) {}
+
+let saveDialsDebounce = null;
+function saveDialsData() {
+  if (saveDialsDebounce) clearTimeout(saveDialsDebounce);
+  saveDialsDebounce = setTimeout(() => {
+    try {
+      localStorage.setItem('dp_dials_custom', JSON.stringify(D));
+      const state = D.map(d => ({ n: d.n, v: d.v, m: d.m ? 1 : 0 }));
+      localStorage.setItem('dp_dials_state', JSON.stringify(state));
+    } catch (_) {}
+  }, 100);
+}
+
+/* ── WebSocket Connection ── */
+let ws = null, reconT = null;
+function connectWS() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  $('sb').className = 'conn-led conn';
+  $('sb').title = 'Status: Connecting...';
+  try {
+    ws = new WebSocket(`${proto}//${location.host}/?token=decklink-usb-auto`);
+    ws.onopen = () => {
+      $('sb').className = 'conn-led';
+      $('sb').title = 'Status: Connected';
+      if (reconT) clearTimeout(reconT);
+      ws.send(JSON.stringify({ type: 'handshake', client: 'DeckLink+ Web', token: 'decklink-usb-auto', timestamp: Date.now() }));
+    };
+    ws.onclose = () => {
+      $('sb').className = 'conn-led off';
+      $('sb').title = 'Status: Offline';
+      schedR();
+    };
+    ws.onerror = () => {
+      $('sb').className = 'conn-led off';
+      $('sb').title = 'Status: Offline';
+      ws.close();
+    };
+  } catch (_) { schedR(); }
+}
+function schedR() {
+  if (reconT) clearTimeout(reconT);
+  reconT = setTimeout(connectWS, 2500);
+}
+function cmd(action, payload = {}) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    $('sb').className = 'conn-led off';
+    $('sb').title = 'Status: Offline';
+    connectWS();
+    return;
+  }
+  ws.send(JSON.stringify({ id: Date.now().toString(), type: 'command', action, payload, token: 'decklink-usb-auto' }));
+}
+
+$('sb').addEventListener('click', () => {
+  const isConn = !$('sb').classList.contains('conn') && !$('sb').classList.contains('off');
+  const isConnecting = $('sb').classList.contains('conn');
+  toast(isConn ? 'DeckLink: Connected' : (isConnecting ? 'DeckLink: Connecting...' : 'DeckLink: Offline'));
+});
+
+function def(id) {
+  let item = null;
+  if (typeof id === 'object' && id && id.sc) {
+    item = { l: id.sc[1], i: id.sc[0], c: id.sc[2], t: 'scene' };
+  } else if (id === 'back') {
+    item = { l: 'Back', i: 'back', blk: 1, t: 'back', c: C.purple };
+  } else if (T[id] && typeof T[id] === 'object') {
+    item = Object.assign({}, T[id]);
+  } else if (DK[id]) {
+    item = Object.assign({}, DK[id]);
+  } else {
+    item = { l: '', i: 'plus', c: C.purple, t: 'empty', empty: true };
+  }
+
+  if (item.empty || item.t === 'empty') {
+    item.empty = true;
+    item.t = 'empty';
+    if (!item.c) item.c = C.purple;
+    if (!item.i) item.i = 'plus';
+    item.l = item.l || '';
+    return item;
+  }
+
+  // Guarantee color array is always valid [colorA, colorB]
+  if (!item.c || !Array.isArray(item.c) || item.c.length < 2) {
+    if (typeof item.c === 'string' && C[item.c]) item.c = C[item.c];
+    else item.c = C.purple;
+  }
+  if (!item.l) item.l = String(id || 'Key');
+  if (!item.i) item.i = 'game';
+  return item;
+}
+
+function toast(m) {
+  const t = $('toast');
+  t.textContent = m;
+  t.classList.add('show');
+  clearTimeout(toast.h);
+  toast.h = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+/* ── Render Horizontal Keys Slider & Left Vertical Pager ── */
+const keysSlider = $('keys-slider');
+const pageDots = $('v-page-dots');
+const pagesNav = $('v-page-nav');
+let currentKeysPage = 0;
+
+function getActiveKeysPage() {
+  const w = keysSlider.clientWidth;
+  if (!w) return currentKeysPage;
+  return Math.max(0, Math.min(PAGES_MAIN_KEYS.length - 1, Math.round(keysSlider.scrollLeft / w)));
+}
+
+function goToKeysPage(pageIdx) {
+  pageIdx = Math.max(0, Math.min(PAGES_MAIN_KEYS.length - 1, pageIdx));
+  currentKeysPage = pageIdx;
+  const w = keysSlider.clientWidth;
+  if (w) {
+    keysSlider.scrollTo({ left: pageIdx * w, behavior: 'smooth' });
+  }
+  updatePageNav();
+}
+
+function updatePageNav() {
+  const pIdx = getActiveKeysPage();
+  currentKeysPage = pIdx;
+  if (pageDots) {
+    pageDots.querySelectorAll('.vpdot, .pdot').forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === pIdx);
+    });
+  }
+}
+
+function renderKeys() {
+  const preservedPage = currentKeysPage;
+  keysSlider.classList.toggle('editing', isEditMode);
+
+  const gridLbl = $('grid-label');
+  if (gridLbl) gridLbl.textContent = `${deckCols} × ${deckRows}`;
+
+  const spacer = document.querySelector('.keys-spacer');
+  if (currentView === 'scenes') {
+    if (pagesNav) pagesNav.style.display = 'none';
+    if (spacer) spacer.style.display = 'none';
+    const sceneItems = [...S.map((s, i) => ({ id: 'sc' + i, sc: s })), { id: 'back' }];
+    keysSlider.innerHTML = `
+      <div class="keys-page">
+        ${sceneItems.map((k, i) => {
+          const d = def(k);
+          const s = k.sc ? scene.cur === +k.id.slice(2) : false;
+          const stCount = (d.s && d.s.length) || 0;
+          return `<button class="key${d.blk ? ' blk' : ''}${s ? ' on' : ''}" data-id="${k.id}" style="--a:${d.c[0]};--b:${d.c[1]}" aria-label="${d.l}">
+            ${ic(d.i)}<span>${d.l}</span><span class="n">${i+1}</span>${s ? '<i class="dot"></i>' : ''}${stCount > 1 ? `<i class="mb">${stCount} steps</i>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  if (pagesNav) pagesNav.style.display = 'flex';
+  if (spacer) spacer.style.display = 'block';
+
+  let totalKeysCount = 0;
+  keysSlider.innerHTML = PAGES_MAIN_KEYS.map((_, pIdx) => {
+    const pageKeys = ensurePageKeys(pIdx);
+    return `
+      <div class="keys-page" data-page="${pIdx}">
+        ${pageKeys.map(kId => {
+          totalKeysCount++;
+          const d = def(kId);
+          if (d.empty || d.t === 'empty') {
+            return `<button class="key empty" data-id="${kId}" aria-label="Add action">
+              <svg class="plus-icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              <span class="n">${totalKeysCount}</span>
+            </button>`;
+          }
+          const s = !!on[kId];
+          const a = s && d.alt ? d.alt : d;
+          const stCount = (d.s && d.s.length) || 0;
+          return `<button class="key${d.blk ? ' blk' : ''}${s ? ' on' : ''}" data-id="${kId}" style="--a:${d.c[0]};--b:${d.c[1]}" aria-label="${a.l}">
+            ${ic(a.i)}<span>${a.l}</span><span class="n">${totalKeysCount}</span>${s ? '<i class="dot"></i>' : ''}${stCount > 1 ? `<i class="mb">${stCount} steps</i>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
+    `;
+  }).join('');
+
+  // Vertical page dots on left edge
+  if (pageDots) {
+    pageDots.innerHTML = PAGES_MAIN_KEYS.map((_, i) => `
+      <div class="vpdot${i === preservedPage ? ' active' : ''}" data-page="${i}" title="Page ${i + 1}"></div>
+    `).join('');
+  }
+
+  updatePageNav();
+
+  // Keep same page after re-render
+  if (preservedPage > 0) {
+    setTimeout(() => {
+      const w = keysSlider.clientWidth;
+      if (w) keysSlider.scrollLeft = preservedPage * w;
+    }, 20);
+  }
+}
+
+// Update active dot on horizontal scroll
+let saveKeysPageDebounce = null;
+keysSlider.addEventListener('scroll', () => {
+  updatePageNav();
+  if (saveKeysPageDebounce) clearTimeout(saveKeysPageDebounce);
+  saveKeysPageDebounce = setTimeout(() => {
+    try {
+      localStorage.setItem('dp_keys_page_idx', currentKeysPage);
+    } catch (_) {}
+  }, 150);
+}, { passive: true });
+
+if (pageDots) {
+  pageDots.addEventListener('click', e => {
+    const dot = e.target.closest('.vpdot, .pdot');
+    if (!dot) return;
+    goToKeysPage(+dot.dataset.page);
+  });
+}
+
+const vAddPageBtn = $('v-add-page-btn');
+if (vAddPageBtn) vAddPageBtn.onclick = addNewDeckPage;
+
+// Desktop mouse drag-to-scroll (disabled during edit mode)
+let isMouseDragging = false, mouseStartX = 0, mouseScrollStart = 0, hasMouseDragged = false;
+keysSlider.addEventListener('mousedown', e => {
+  if (isEditMode) return;
+  if (e.button !== 0) return;
+  isMouseDragging = true;
+  hasMouseDragged = false;
+  mouseStartX = e.clientX;
+  mouseScrollStart = keysSlider.scrollLeft;
+});
+window.addEventListener('mousemove', e => {
+  if (!isMouseDragging || isEditMode) return;
+  const dx = e.clientX - mouseStartX;
+  if (Math.abs(dx) > 24) {
+    hasMouseDragged = true;
+    keysSlider.scrollLeft = mouseScrollStart - dx;
+  }
+});
+window.addEventListener('mouseup', () => {
+  if (!isMouseDragging) return;
+  isMouseDragging = false;
+  if (hasMouseDragged && !isEditMode) {
+    const w = keysSlider.clientWidth;
+    if (w) {
+      const target = Math.max(0, Math.min(PAGES_MAIN_KEYS.length - 1, Math.round(keysSlider.scrollLeft / w)));
+      goToKeysPage(target);
+    }
+  }
+  hasMouseDragged = false;
+});
+
+/* ── Rock-Solid Button Press & Edit Handling ── */
+let activeTouch = null;
+let lastPressTime = 0;
+let editOpenCooldown = 0;
+
+function safeOpenEdit(keyId) {
+  if (!keyId || keyId === 'back') return;
+  const now = Date.now();
+  if (now - editOpenCooldown < 250) return;
+  editOpenCooldown = now;
+  openEdit(keyId);
+}
+
+keysSlider.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.key');
+  if (!b) return;
+  activeTouch = {
+    keyId: b.dataset.id,
+    el: b,
+    startX: e.clientX,
+    startY: e.clientY,
+    startTime: Date.now(),
+    moved: false
+  };
+  b.classList.add('down');
+});
+
+keysSlider.addEventListener('pointermove', e => {
+  if (!activeTouch) return;
+  const dx = Math.abs(e.clientX - activeTouch.startX);
+  const dy = Math.abs(e.clientY - activeTouch.startY);
+  if (dx > 25 || dy > 25) {
+    activeTouch.moved = true;
+    if (activeTouch.el) activeTouch.el.classList.remove('down');
+  }
+});
+
+keysSlider.addEventListener('pointerup', e => {
+  if (!activeTouch) return;
+  const t = activeTouch;
+  activeTouch = null;
+  if (t.el) t.el.classList.remove('down');
+
+  const dx = Math.abs(e.clientX - t.startX);
+  const dy = Math.abs(e.clientY - t.startY);
+
+  // In edit mode: single tap on ANY card (left or right) opens customizer immediately!
+  if (isEditMode) {
+    if (dx < 35 && dy < 35) {
+      safeOpenEdit(t.keyId);
+    }
+    return;
+  }
+
+  // Normal mode: only ignore if this was a deliberate horizontal page swipe (>28px)
+  if (t.moved || dx >= 28 || hasMouseDragged) return;
+
+  const now = Date.now();
+  if (now - lastPressTime < 180) return;
+  lastPressTime = now;
+
+  handleButtonAction(t.keyId, t.el);
+});
+
+keysSlider.addEventListener('pointercancel', () => {
+  if (!activeTouch) return;
+  const t = activeTouch;
+  activeTouch = null;
+  if (t.el) t.el.classList.remove('down');
+
+  // CRITICAL FIX: If in edit mode and the browser fired pointercancel on the right side
+  // due to horizontal scroll gesture detection, but the touch was a quick tap (<350ms),
+  // this was 100% an intended tap to edit!
+  if (isEditMode && t.keyId) {
+    const elapsed = Date.now() - t.startTime;
+    if (elapsed < 350 && !t.moved) {
+      safeOpenEdit(t.keyId);
+    }
+  }
+});
+
+// Direct touch fallback for iOS, Surface Pro, iPad, Chrome Touch Emulation
+keysSlider.addEventListener('touchend', e => {
+  if (!isEditMode) return;
+  const touch = e.changedTouches ? e.changedTouches[0] : null;
+  const b = (touch ? document.elementFromPoint(touch.clientX, touch.clientY) : e.target)?.closest('.key');
+  if (b && b.dataset.id) {
+    safeOpenEdit(b.dataset.id);
+  }
+}, { passive: true });
+
+// Click delegation in capture phase: guarantees opening regardless of pointer cancellation
+keysSlider.addEventListener('click', e => {
+  const b = e.target.closest('.key');
+  if (!b) return;
+  if (isEditMode) {
+    e.preventDefault();
+    e.stopPropagation();
+    safeOpenEdit(b.dataset.id);
+  }
+}, true);
+
+// Right-click opens customizer
+keysSlider.addEventListener('contextmenu', e => {
+  const b = e.target.closest('.key');
+  if (b) {
+    e.preventDefault();
+    safeOpenEdit(b.dataset.id);
+  }
+});
+
+function handleButtonAction(keyId, el) {
+  if (navigator.vibrate) navigator.vibrate(10);
+
+  if (isEditMode) {
+    openEdit(keyId);
+    return;
+  }
+
+  const d = def(keyId);
+  if (d.empty || d.t === 'empty') {
+    safeOpenEdit(keyId);
+    toast('Assign an action to this button');
+    return;
+  }
+
+  if (keyId === 'back') {
+    currentView = 'main';
+    renderKeys();
+    return;
+  }
+
+  if (keyId && keyId.startsWith('sc')) {
+    scene.cur = +keyId.slice(2);
+    renderKeys();
+    const scName = S[scene.cur] ? S[scene.cur][1] : 'Scene';
+    toast('Scene: ' + scName);
+    cmd('hotkey', { modifiers: ['ctrl', 'f' + (scene.cur + 1)], key: '' });
+    return;
+  }
+
+  if (d.t === 'folder') {
+    currentView = d.to || 'scenes';
+    renderKeys();
+    return;
+  }
+
+  // Multi-step Macro Execution
+  if (d.s && d.s.length > 0 && !['folder', 'back', 'scene'].includes(d.t)) {
+    runSteps({ id: keyId }, d.s, el);
+    return;
+  }
+
+  if (d.t === 'toggle') {
+    on[keyId] = !on[keyId];
+    if (keyId === 'live' && on.live) tm.live = 0;
+    if (keyId === 'rec' && on.rec) tm.rec = 0;
+    if (keyId === 'mic') {
+      D[0].m = on.mic ? 1 : 0;
+      updateStripAndKnobs();
+      cmd('media', { action: 'micmute' });
+    } else if (d.action) {
+      cmd(d.action, d.payload || {});
+    }
+    toast(on[keyId] ? (d.alt ? d.alt.l : 'On') : 'Off: ' + d.l);
+    renderKeys();
+    stat();
+    return;
+  }
+
+  // Tap button
+  if (el) {
+    el.classList.remove('hit');
+    void el.offsetWidth;
+    el.classList.add('hit');
+  }
+  if (d.action) cmd(d.action, d.payload || {});
+  toast(d.msg || ('Action: ' + d.l));
+}
+
+/* Live Timers */
+function stat() {
+  let h = '';
+  if (on.live) h += `<span class="pill live">LIVE ${fmt(tm.live)}</span>`;
+  if (on.rec) h += `<span class="pill rec">REC ${fmt(tm.rec)}</span>`;
+  if (stat.s !== h) { stat.s = h; $('stat').innerHTML = h; }
+  const l = $('stat').querySelector('.live'), r = $('stat').querySelector('.rec');
+  if (l) l.textContent = 'LIVE ' + fmt(tm.live);
+  if (r) r.textContent = 'REC ' + fmt(tm.rec);
+}
+const tm = { live: 0, rec: 0 };
+const fmt = s => String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+setInterval(() => {
+  if (on.live) tm.live++;
+  if (on.rec) tm.rec++;
+  stat();
+}, 1000);
+
+/* Keyboard 1-9 shortcuts */
+addEventListener('keydown', e => {
+  if (document.body.classList.contains('so') || document.body.classList.contains('dso') || document.body.classList.contains('gso')) {
+    if (e.key === 'Escape') {
+      if (document.body.classList.contains('pk')) closePk();
+      else if (document.body.classList.contains('gso')) closeGridSheet();
+      else if (document.body.classList.contains('dso')) closeDialSheet();
+      else closeSheet();
+    }
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^[1-8]$/.test(e.key)) {
+    const i = +e.key - 1;
+    const activePage = keysSlider.querySelector('.keys-page');
+    if (activePage && activePage.children[i]) {
+      const b = activePage.children[i];
+      handleButtonAction(b.dataset.id, b);
+      b.classList.add('down');
+      setTimeout(() => b.classList.remove('down'), 110);
+    }
+  } else if (e.key === 'Escape' && currentView !== 'main') {
+    currentView = 'main';
+    renderKeys();
+  }
+});
+
+/* ── Touch Strip (Display Bar) ── */
+const stripScroll = $('strip-scroll');
+const stripEl = $('strip');
+const knobsEl = $('knobs');
+
+function calcSegmentWidth() {
+  const w = stripScroll.clientWidth || 360;
+  const dialsCount = document.body.classList.contains('disp-2-dials') ? 2 : 4;
+  return Math.floor(w / dialsCount);
+}
+
+function updateSegmentWidths() {
+  const segW = calcSegmentWidth();
+  document.documentElement.style.setProperty('--seg-w', segW + 'px');
+  stripEl.querySelectorAll('.seg').forEach(s => {
+    s.style.width = segW + 'px';
+    s.style.flex = `0 0 ${segW}px`;
+  });
+}
+
+function renderStrip() {
+  let html = D.map((d, i) => `
+    <div class="seg" id="s${i}" data-idx="${i}" style="--c1:${d.c[0]};--c2:${d.c[1]}" title="${isEditMode ? 'Tap to customize dial' : 'Tap to mute / unmute'}">
+      <div class="h"><span>${d.n}</span>${ic(d.i)}</div>
+      <div class="meter"><i></i></div>
+      <div class="v"></div>
+      ${isEditMode ? '<span class="seg-edit-pill">Edit</span>' : ''}
+    </div>
+  `).join('');
+
+  if (isEditMode) {
+    html += `
+      <div class="seg add-dial-seg" id="add-dial-seg" title="Add new channel to display bar">
+        <div class="h"><span>Add Dial</span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="add-dial-hint">+ New channel</div>
+      </div>
+    `;
+  }
+
+  stripEl.innerHTML = html;
+  updateSegmentWidths();
+}
+
+/* ── Dynamic Knob Binding (Dynamic 4 or 2 Knobs) ── */
+let currentVisibleStartIdx = 0;
+
+function getVisibleStartIndex() {
+  const segW = calcSegmentWidth();
+  if (!segW) return 0;
+  const raw = Math.round(stripScroll.scrollLeft / segW);
+  const dialsCount = document.body.classList.contains('disp-2-dials') ? 2 : 4;
+  return Math.max(0, Math.min(Math.max(0, D.length - dialsCount), raw));
+}
+
+function getItemIdxForKnobSlot(slot) {
+  return Math.max(0, Math.min(D.length - 1, currentVisibleStartIdx + slot));
+}
+
+function updateStripAndKnobs() {
+  if (document.body.classList.contains('disp-hidden')) return;
+  currentVisibleStartIdx = getVisibleStartIndex();
+  const dialsCount = document.body.classList.contains('disp-2-dials') ? 2 : 4;
+
+  // 1. Update all strip segments meters and text
+  D.forEach((d, i) => {
+    const s = $('s' + i);
+    if (!s) return;
+    const isMuted = (d.role !== 'lights') && (!!d.m || d.v === 0);
+    if (s.classList) s.classList.toggle('mute', isMuted);
+    const mi = s.querySelector('i');
+    if (mi) mi.style.width = d.v + '%';
+    const vi = s.querySelector('.v');
+    if (vi) {
+      if (d.role === 'lights') {
+        vi.textContent = d.v === 0 ? 'Off' : d.v + '%';
+      } else {
+        vi.textContent = isMuted ? 'Muted' : d.v + '%';
+      }
+    }
+  });
+
+  // 2. Update the knobs according to the visible items
+  for (let slot = 0; slot < 4; slot++) {
+    const knobCell = knobsEl.children[slot];
+    if (!knobCell) continue;
+    if (slot >= dialsCount) {
+      knobCell.style.display = 'none';
+      continue;
+    }
+    knobCell.style.display = '';
+
+    const itemIdx = getItemIdxForKnobSlot(slot);
+    const d = D[itemIdx];
+    if (!d) continue;
+
+    const knobBtn = knobCell.querySelector('.knob');
+    if (!knobBtn) continue;
+    const isMuted = (d.role !== 'lights') && (!!d.m || d.v === 0);
+    if (knobBtn.classList) knobBtn.classList.toggle('mute', isMuted);
+    const labelStatus = d.role === 'lights' ? (d.v === 0 ? 'Off' : d.v + '%') : (isMuted ? 'Muted' : d.v + '%');
+    knobBtn.setAttribute('aria-label', `${d.n}: ${labelStatus}`);
+
+    const cap = knobBtn.querySelector('.cap');
+    if (cap) {
+      cap.style.transform = `rotate(${-135 + d.v * 2.7}deg)`;
+    }
+  }
+}
+
+let saveStripScrollDebounce = null;
+stripScroll.addEventListener('scroll', () => {
+  updateStripAndKnobs();
+  if (saveStripScrollDebounce) clearTimeout(saveStripScrollDebounce);
+  saveStripScrollDebounce = setTimeout(() => {
+    try {
+      localStorage.setItem('dp_strip_scroll_idx', currentVisibleStartIdx);
+    } catch (_) {}
+  }, 150);
+}, { passive: true });
+
+window.addEventListener('resize', () => {
+  updateSegmentWidths();
+  updateStripAndKnobs();
+});
+
+// Throttle PC volume updates
+let dialCmdTimer = null;
+function sendDialVolumeToPC(itemIdx, val) {
+  if (dialCmdTimer) clearTimeout(dialCmdTimer);
+  dialCmdTimer = setTimeout(() => {
+    const d = D[itemIdx];
+    if (!d) return;
+    if (d.role === 'mic') {
+      cmd('media', { action: 'setmicvol', value: val });
+    } else {
+      cmd('media', { action: 'setvol', value: val });
+    }
+  }, 45);
+}
+
+function setItemVolume(itemIdx, newVol) {
+  itemIdx = Math.max(0, Math.min(D.length - 1, itemIdx));
+  const d = D[itemIdx];
+  const rounded = Math.max(0, Math.min(100, Math.round(newVol)));
+  d.v = rounded;
+
+  if (d.role === 'lights') {
+    d.m = 0; // Lights cannot be muted
+  } else {
+    // For audio channels (Headset, Music, Mic, Game, Discord, etc.):
+    if (d.v === 0) {
+      d.m = 1; // At 0%, automatically mute!
+    } else if (d.m && d.v > 0) {
+      d.m = 0; // When volume is raised above 0%, unmute!
+    }
+  }
+
+  updateStripAndKnobs();
+
+  const s = $('s' + itemIdx);
+  if (s) {
+    s.classList.add('hot');
+    clearTimeout(s.hotTimer);
+    s.hotTimer = setTimeout(() => s.classList.remove('hot'), 500);
+  }
+
+  sendDialVolumeToPC(itemIdx, d.v);
+  saveDialsData();
+}
+
+function toggleMuteItem(itemIdx) {
+  itemIdx = Math.max(0, Math.min(D.length - 1, itemIdx));
+  const d = D[itemIdx];
+
+  // Lights cannot be muted! Logically toggle Off/On (0% or previous brightness)
+  if (d.role === 'lights') {
+    d.m = 0;
+    if (d.v > 0) {
+      d.prevV = d.v;
+      d.v = 0;
+    } else {
+      d.v = d.prevV || 80;
+    }
+    updateStripAndKnobs();
+    saveDialsData();
+    return;
+  }
+
+  d.m = d.m ? 0 : 1;
+  // If unmuting when at 0%, restore volume to an audible level (25%)
+  if (!d.m && d.v === 0) {
+    d.v = 25;
+  }
+
+  if (itemIdx === 0) {
+    on.mic = !!D[0].m;
+    renderKeys();
+    cmd('media', { action: 'micmute' });
+  } else {
+    cmd('media', { action: 'mute' });
+  }
+
+  updateStripAndKnobs();
+  saveDialsData();
+}
+
+// Tap strip segment directly to mute or edit
+stripEl.addEventListener('click', e => {
+  const addBtn = e.target.closest('#add-dial-seg');
+  if (addBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    addNewDialChannel();
+    return;
+  }
+  const s = e.target.closest('.seg');
+  if (!s) return;
+  const itemIdx = +s.dataset.idx;
+  if (isEditMode) {
+    e.preventDefault();
+    e.stopPropagation();
+    openDialEdit(itemIdx);
+    return;
+  }
+  toggleMuteItem(itemIdx);
+  if (navigator.vibrate) navigator.vibrate(8);
+});
+
+// ── 4 Knobs Interaction (True Circular Rotary Tracking, Wheel, Click to Mute) ──
+document.querySelectorAll('.knob').forEach(k => {
+  const slot = +k.dataset.slot;
+  let last = null, acc = 0, val = 0, moved = false;
+
+  // angle of the pointer around the center of the knob, in degrees
+  const ang = e => {
+    const r = k.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
+
+  k.addEventListener('pointerdown', e => {
+    const itemIdx = getItemIdxForKnobSlot(slot);
+    last = ang(e);
+    acc = 0;
+    val = D[itemIdx].v;
+    moved = false;
+    k.setPointerCapture(e.pointerId);
+  });
+
+  k.addEventListener('pointercancel', () => {
+    last = null;
+  });
+
+  k.addEventListener('pointermove', e => {
+    if (last == null) return;
+    const a = ang(e);
+    let d = a - last;
+    if (d > 180) d -= 360;   // handle wrap-around at +/-180 degrees
+    if (d < -180) d += 360;
+    last = a;
+    acc += d;
+    if (Math.abs(acc) > 4) moved = true;  // small movement still counts as a tap (mute)
+    if (moved) {
+      val = Math.max(0, Math.min(100, val + d / 2.7));  // 2.7 degrees = 1%, knob tracks pointer 1:1
+      const itemIdx = getItemIdxForKnobSlot(slot);
+      setItemVolume(itemIdx, val);
+    }
+  });
+
+  k.addEventListener('pointerup', () => {
+    if (last != null && !moved) {
+      const itemIdx = getItemIdxForKnobSlot(slot);
+      if (isEditMode) {
+        openDialEdit(itemIdx);
+        last = null;
+        return;
+      }
+      toggleMuteItem(itemIdx);
+      if (navigator.vibrate) navigator.vibrate(8);
+    }
+    last = null;
+  });
+
+  k.addEventListener('wheel', e => {
+    e.preventDefault();
+    const itemIdx = getItemIdxForKnobSlot(slot);
+    setItemVolume(itemIdx, D[itemIdx].v - Math.sign(e.deltaY) * (e.shiftKey ? 10 : 3));
+  }, { passive: false });
+
+  k.addEventListener('keydown', e => {
+    const itemIdx = getItemIdxForKnobSlot(slot);
+    const step = e.shiftKey ? 10 : 3;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+      setItemVolume(itemIdx, D[itemIdx].v + step);
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+      setItemVolume(itemIdx, D[itemIdx].v - step);
+      e.preventDefault();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      toggleMuteItem(itemIdx);
+      e.preventDefault();
+    }
+  });
+});
+
+/* ── Action Catalog & Multi-Step Macro Builder ── */
+const CAT = `#Apps
+Chrome
+Edge
+Firefox
+Brave
+OBS Studio
+Streamlabs
+Twitch Studio
+Elgato Camera Hub
+Elgato Wave Link
+Spotify
+Discord
+Steam
+Epic Games
+Battle.net
+Riot Client
+Ubisoft Connect
+EA App
+GOG Galaxy
+Minecraft Launcher
+Xbox
+WhatsApp
+Telegram
+Slack
+Teams
+Zoom
+Skype
+VS Code
+Notepad
+Calculator
+Terminal
+PowerShell
+Command Prompt
+File Explorer
+Task Manager
+Settings
+Control Panel
+Paint
+Snipping Tool
+Photoshop
+Illustrator
+Premiere Pro
+After Effects
+DaVinci Resolve
+Lightroom
+Blender
+Figma
+Canva
+Notion
+Obsidian
+Word
+Excel
+PowerPoint
+Outlook
+OneNote
+VLC
+Audacity
+Voicemeeter
+NVIDIA App
+MSI Afterburner
+Unity Hub
+Android Studio
+Postman
+Docker Desktop
+Git Bash
+7-Zip
+#Streaming
+OBS: Start streaming
+OBS: Stop streaming
+OBS: Start recording
+OBS: Stop recording
+OBS: Pause or resume recording
+OBS: Switch scene~Scene name
+OBS: Show or hide source~Source name
+OBS: Mute or unmute source~Source name
+OBS: Set source volume~Source name and percent
+OBS: Start replay buffer
+OBS: Save replay
+OBS: Toggle studio mode
+OBS: Start virtual camera
+OBS: Stop virtual camera
+Twitch: Go live
+Twitch: Create clip
+Twitch: Add stream marker
+Twitch: Set title~New title
+Twitch: Set category~Game name
+Twitch: Run ad~Seconds, 30 to 180
+Twitch: Raid channel~Channel name
+Twitch: Send chat message~Message
+Twitch: Clear chat
+Twitch: Slow mode~Seconds
+Twitch: Emote only mode
+YouTube: Go live
+YouTube: End stream
+Streamer.bot: Run action~Action name
+Elgato: Toggle key light
+Elgato: Set light brightness~Percent
+Camera: Toggle webcam
+#Chat and social
+Discord: Toggle mute
+Discord: Toggle deafen
+Discord: Push to talk
+Discord: Join voice channel~Channel link or name
+Discord: Leave voice channel
+Discord: Send message~Channel and message
+Discord: Set status~online, idle, dnd or invisible
+Discord: Toggle overlay
+WhatsApp: Send message~Contact and message
+Slack: Set status~Status text
+Teams: Toggle mute
+Zoom: Toggle mute
+Zoom: Toggle video
+Zoom: Leave meeting
+Steam: Launch game~App ID or name
+Steam: Set status~online, away or invisible
+#System
+Volume up
+Volume down
+Mute or unmute system
+Set system volume~Percent, 0 to 100
+Set brightness~Percent, 0 to 100
+Switch audio output~Device name
+Switch microphone~Device name
+Toggle dark mode
+Toggle night light
+Toggle Wi-Fi
+Toggle Bluetooth
+Toggle airplane mode
+Toggle focus assist
+Take screenshot
+Record screen
+Open Settings page~ms-settings: address
+Open Run dialog
+Open clipboard history
+Open emoji panel
+Empty recycle bin
+Kill process~Process name, like chrome.exe
+Restart process~Process name
+Set power plan~Balanced or High performance
+Show notification~Message
+Speak text~Text to read aloud
+Play sound~Path to a .wav or .mp3
+Copy to clipboard~Text
+#Media
+Play or pause
+Next track
+Previous track
+Stop playback
+Seek forward 10 seconds
+Seek back 10 seconds
+Spotify: Play playlist~Spotify link
+Spotify: Like current song
+Spotify: Toggle shuffle
+Spotify: Set volume~Percent
+#Windows
+Show desktop
+Switch window
+Open task view
+Close window
+Minimize window
+Maximize window
+Minimize all windows
+Snap window left
+Snap window right
+Move window to next monitor
+Keep window on top
+Focus window~Window title
+New virtual desktop
+Next virtual desktop
+Previous virtual desktop
+#Web
+Open website~https://example.com
+Open Claude
+Search Google~Search text
+Search YouTube~Search text
+Open Twitch channel~Channel name
+Compose Gmail~Recipient
+Send web request (GET)~URL
+Send webhook (POST)~URL
+Download file~URL
+Open incognito window
+#Keyboard and mouse
+Press hotkey~Ctrl+Shift+M
+Type text~Text to type
+Press key~Key name, like F13
+Hold key~Key and seconds
+Paste snippet~Text to paste
+Mouse click~left, right or middle
+Move mouse~x, y
+Scroll~up or down, and amount
+#Files and scripts
+Launch app or file~Path to the app or file
+Open folder~Folder path
+Run script~Path to a .bat, .ps1 or .py
+Run command~Command line
+Run PowerShell~Command
+Copy file~Source and destination
+Move file~Source and destination
+Delete file~Path
+Create text file~Path and text
+Zip folder~Folder path
+#Smart home
+Lights on
+Lights off
+Set light scene~Scene name
+Set light color~Hex color
+Toggle smart plug~Device name
+Home Assistant: Call service~domain.service and entity
+Philips Hue: Activate scene~Scene name
+Set thermostat~Temperature
+#Developer
+Open in VS Code~Folder path
+Git: Pull~Repo path
+Git: Commit and push~Repo path and message
+Run npm script~Folder and script name
+Start dev server~Folder path
+Docker: Compose up~Folder path
+Docker: Compose down~Folder path
+Open terminal here~Folder path
+#Power
+Lock PC
+Sleep
+Hibernate
+Turn off display
+Restart PC
+Shut down PC
+Sign out
+Shut down in~Minutes
+Cancel scheduled shutdown
+#Flow
+Wait~Seconds, like 2
+Wait until app opens~Process name
+Wait until window appears~Window title
+Ask before continuing~Question
+Stop if app is not running~Process name
+Switch deck page~Main or Scenes
+Toggle this key on or off`;
+
+const CATS = [], AL = [], A = {};
+let cc = '';
+CAT.split('\n').forEach(l => {
+  l = l.trim();
+  if (!l) return;
+  if (l[0] === '#') {
+    cc = l.slice(1);
+    CATS.push(cc);
+    return;
+  }
+  const p = l.split('~'), a = { id: cc + ':' + p[0], n: p[0], c: cc, ph: p[1] == null ? null : p[1], cmd: p[0] };
+  AL.push(a);
+  A[a.id] = a;
+});
+
+const CI = {
+  'Apps': 'folder',
+  'Streaming': 'live',
+  'Chat and social': 'chat',
+  'System': 'screen',
+  'Media': 'play',
+  'Windows': 'screen',
+  'Web': 'globe',
+  'Keyboard and mouse': 'kbd',
+  'Files and scripts': 'term',
+  'Smart home': 'bulb',
+  'Developer': 'term',
+  'Power': 'power',
+  'Flow': 'clock'
+};
+const cicon = c => `<svg viewBox="0 0 24 24"><path d="${P[CI[c]] || P.star}"/></svg>`;
+const ar = p => `<svg viewBox="0 0 24 24"><path d="${p}"/></svg>`;
+
+const DARK = ['#2b2e44', '#0d0e18'];
+let ed = null;
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SW = [C.purple, C.pink, C.cyan, C.orange, C.green, DARK];
+const IC = Object.keys(P).filter(n => n !== 'back' && n !== 'pause');
+
+function openEdit(keyId) {
+  if (!keyId || keyId === 'back') return;
+  const d = def(keyId);
+  const defItem = DK[keyId] || d;
+
+  let initialSteps = [];
+  if (d.s && Array.isArray(d.s) && d.s.length > 0) {
+    initialSteps = d.s.map(x => ({ a: x.a, v: x.v || '' }));
+  } else if (d.action === 'launch') {
+    const p = (d.payload && d.payload.path) || '';
+    if (p.startsWith('http')) {
+      initialSteps = [{ a: 'Web:Open website', v: p }];
+    } else {
+      initialSteps = [{ a: 'Apps:' + (p || 'Calculator'), v: p }];
+    }
+  } else if (d.action === 'hotkey') {
+    const m = (d.payload && d.payload.modifiers) || [];
+    const pts = [...m, (d.payload && d.payload.key) || ''].filter(Boolean);
+    initialSteps = [{ a: 'Keyboard and mouse:Press hotkey', v: pts.join('+') }];
+  } else if (d.action === 'media') {
+    const mAction = (d.payload && d.payload.action) || 'playPause';
+    initialSteps = [{ a: 'Media:Play or pause', v: mAction }];
+  } else if (d.action === 'obs') {
+    const req = (d.payload && d.payload.requestType) || 'ToggleStream';
+    initialSteps = [{ a: 'Streaming:OBS: Start streaming', v: req }];
+  } else if (d.action === 'system') {
+    initialSteps = [{ a: 'System:Take screenshot', v: (d.payload && d.payload.action) || '' }];
+  } else if (d.action === 'run') {
+    initialSteps = [{ a: 'Files and scripts:Run command', v: (d.payload && d.payload.command) || '' }];
+  }
+
+  let selC = d.c || C.purple;
+  for (const sw of SW) {
+    if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
+  }
+
+  const isEmpty = !!d.empty || d.t === 'empty';
+  ed = {
+    k: { id: keyId },
+    d: defItem,
+    l: isEmpty ? '' : (d.l != null ? d.l : (defItem.l || 'Key')),
+    i: isEmpty ? 'star' : (d.i || defItem.i || 'game'),
+    c: selC,
+    s: initialSteps,
+    empty: isEmpty
+  };
+
+  $('icons').innerHTML = IC.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n]}"/></svg></button>`).join('');
+  $('sws').innerHTML = SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
+
+  $('fl').value = ed.l;
+  $('emo').value = P[ed.i] ? '' : ed.i;
+
+  sheet();
+  steps();
+  document.body.classList.add('so');
+  if ($('wrap')) $('wrap').inert = true;
+  setTimeout(() => $('fl').focus({ preventScroll: true }), 340);
+}
+
+function sheet() {
+  if (!ed) return;
+  const pv = $('pv'), s = $('sheet');
+  pv.style.setProperty('--a', ed.c[0]);
+  pv.style.setProperty('--b', ed.c[1]);
+  s.style.setProperty('--a', ed.c[0]);
+  s.style.setProperty('--b', ed.c[1]);
+
+  const displayLabel = ed.l || (ed.empty ? 'Add action' : (ed.d.l || 'Key'));
+  pv.innerHTML = ic(ed.i) + '<span>' + esc(displayLabel) + '</span>';
+  $('stitle').textContent = ed.empty ? 'Add Action' : 'Customize key';
+  $('ssub').textContent = ed.empty ? 'Configure new button' : ('Editing ' + (ed.d.l || ed.k.id));
+
+  document.querySelectorAll('.ic-t').forEach(b => b.setAttribute('aria-pressed', b.dataset.n === ed.i));
+  document.querySelectorAll('.sw-c').forEach((b, i) => b.setAttribute('aria-pressed', SW[i][0] === ed.c[0]));
+}
+
+function steps() {
+  $('stc').textContent = ed.s.length ? '· ' + ed.s.length + (ed.s.length > 1 ? ' steps, run in order' : ' step') : '';
+  $('steps').innerHTML = ed.s.map((s, i) => {
+    const a = A[s.a] || { n: (s.a && s.a.includes(':')) ? s.a.split(':')[1] : (s.a || 'Action'), c: (s.a && s.a.includes(':')) ? s.a.split(':')[0] : 'Flow', ph: null };
+    return `<div class="st" data-i="${i}">
+      <span class="stn">${i + 1}</span>
+      <div class="stb">
+        <div class="stt"><span class="sti">${cicon(a.c)}</span><b>${esc(a.n)}</b></div>
+        ${a.ph != null ? `<input class="sh-in sm" data-p placeholder="${esc(a.ph)}" value="${esc(s.v || '')}" spellcheck="false" autocomplete="off">` : ''}
+      </div>
+      <div class="stx">
+        <button data-m="-1" aria-label="Move up">${ar('M6 14l6-6 6 6')}</button>
+        <button data-m="1" aria-label="Move down">${ar('M6 10l6 6 6-6')}</button>
+        <button data-x aria-label="Remove">${ar('M6 6l12 12M18 6L6 18')}</button>
+      </div>
+    </div>`;
+  }).join('') || '<p class="st-e">No actions yet. Add one, or chain several to build a macro.</p>';
+}
+
+$('steps').onclick = e => {
+  const st = e.target.closest('.st'), b = e.target.closest('button');
+  if (!st || !b || !ed) return;
+  const i = +st.dataset.i;
+  if (b.dataset.x !== undefined) {
+    ed.s.splice(i, 1);
+  } else {
+    const j = i + (+b.dataset.m);
+    if (j < 0 || j >= ed.s.length) return;
+    [ed.s[i], ed.s[j]] = [ed.s[j], ed.s[i]];
+  }
+  steps();
+};
+
+$('steps').oninput = e => {
+  const st = e.target.closest('.st');
+  if (st && ed && e.target.dataset.p !== undefined) {
+    ed.s[+st.dataset.i].v = e.target.value;
+  }
+};
+
+/* ── Action Picker Modal ── */
+let pcat = 'All';
+
+function openPk() {
+  document.body.classList.add('pk');
+  $('sheet').inert = true;
+  $('pks').value = '';
+  pcat = 'All';
+  pkr();
+  setTimeout(() => $('pks').focus({ preventScroll: true }), 300);
+}
+
+function closePk() {
+  document.body.classList.remove('pk');
+  $('sheet').inert = false;
+}
+
+function pkr() {
+  const q = $('pks').value.trim().toLowerCase();
+  $('pkc').innerHTML = ['All', ...CATS].map(c => `<button data-c="${c}" aria-pressed="${c === pcat}">${c}</button>`).join('');
+  const L = AL.filter(a => (pcat === 'All' || a.c === pcat) && (!q || (a.n + ' ' + a.c).toLowerCase().includes(q)));
+  let h = '', last = '';
+  L.slice(0, 150).forEach(a => {
+    if (!q && pcat === 'All' && a.c !== last) {
+      last = a.c;
+      h += `<div class="pk-h">${a.c}</div>`;
+    }
+    h += `<button class="pk-i" data-id="${esc(a.id)}"><span class="sti">${cicon(a.c)}</span><span>${esc(a.n)}</span><em>${q || pcat !== 'All' ? a.c : ''}</em></button>`;
+  });
+  if (!L.length) {
+    h = `<button class="pk-i" data-custom><span class="sti">${cicon('Files and scripts')}</span><span>Run “${esc($('pks').value.trim())}” as a command</span></button>`;
+  }
+  $('pkl').innerHTML = h;
+}
+
+$('addstep').onclick = openPk;
+$('pkb').onclick = closePk;
+$('pks').oninput = pkr;
+$('pkc').onclick = e => {
+  const b = e.target.closest('button');
+  if (b) { pcat = b.dataset.c; pkr(); }
+};
+
+$('pkl').onclick = e => {
+  const b = e.target.closest('.pk-i');
+  if (!b || !ed) return;
+  ed.s.push(b.dataset.custom !== undefined ? { a: 'Files and scripts:Run command', v: $('pks').value.trim() } : { a: b.dataset.id, v: '' });
+  closePk();
+  steps();
+  const L = $('steps').lastElementChild;
+  if (L) {
+    L.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const inp = L.querySelector('input');
+    if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 350);
+  }
+};
+
+function closeSheet() {
+  if (document.body.classList.contains('pk')) closePk();
+  document.body.classList.remove('so');
+  if ($('wrap')) $('wrap').inert = false;
+  if ($('edt')) $('edt').focus({ preventScroll: true });
+}
+
+$('icons').onclick = e => {
+  const b = e.target.closest('.ic-t');
+  if (b && ed) { ed.i = b.dataset.n; $('emo').value = ''; sheet(); }
+};
+$('emo').oninput = e => {
+  const v = e.target.value.trim();
+  if (v && ed) { ed.i = v; sheet(); }
+};
+$('sws').onclick = e => {
+  const b = e.target.closest('.sw-c');
+  if (b && ed) { ed.c = SW[+b.dataset.i]; sheet(); }
+};
+$('fl').oninput = e => {
+  if (ed) { ed.l = e.target.value; sheet(); }
+};
+
+$('ssave').onclick = () => {
+  if (!ed || !ed.k) return;
+  const keyId = ed.k.id;
+  const d = ed.d;
+  const l = ed.l.trim() || d.l || 'Key';
+  const i = ed.i || 'game';
+  const c = ed.c || C.purple;
+  const blk = (c[0] === DARK[0] && c[1] === DARK[1]) ? 1 : 0;
+  const s = ed.s.map(x => ({ a: x.a, v: (x.v || '').trim() }));
+
+  T[keyId] = {
+    l,
+    i,
+    c,
+    blk,
+    t: 'tap',
+    s,
+    msg: s.length > 1 ? `Triggered macro: ${l}` : `Triggered: ${l}`
+  };
+
+  localStorage.setItem('dp_keys', JSON.stringify(T));
+  closeSheet();
+  renderKeys();
+  toast(s.length > 1 ? `Saved macro with ${s.length} steps` : `Saved: ${l}`);
+};
+
+$('reset').onclick = () => {
+  if (!ed || !ed.k) return;
+  const keyId = ed.k.id;
+  delete T[keyId];
+  localStorage.setItem('dp_keys', JSON.stringify(T));
+  closeSheet();
+  renderKeys();
+  toast('Reset to default');
+};
+
+const clearBtn = $('clear-btn');
+if (clearBtn) {
+  clearBtn.onclick = () => {
+    if (!ed || !ed.k) return;
+    const keyId = ed.k.id;
+    T[keyId] = {
+      l: '',
+      i: 'plus',
+      c: C.purple,
+      t: 'empty',
+      empty: true,
+      action: 'empty',
+      s: []
+    };
+    localStorage.setItem('dp_keys', JSON.stringify(T));
+    closeSheet();
+    renderKeys();
+    toast('Button cleared to empty (+)');
+  };
+}
+
+/* ── Dial (Display Bar) Customizer Engine ── */
+let editingDialIdx = null;
+let dialEd = null;
+
+const DIAL_SW = [
+  ['#ff5a93', '#ffb36b'], // Pink / Coral
+  ['#6a8bff', '#34d6ff'], // Cyan / Blue
+  ['#a48aff', '#ff5a93'], // Purple / Rose
+  ['#ffcf6a', '#ff8a4f'], // Amber / Orange
+  ['#4fe3a3', '#18a0a8'], // Green / Teal
+  ['#a48aff', '#6a4cf0'], // Violet / Indigo
+  ['#ff5a93', '#ff5f6d'], // Crimson / Red
+  ['#4b4f6b', '#1e2136']  // Dark Slate
+];
+
+const DIAL_ICONS = ['mic', 'head', 'bulb', 'game', 'play', 'chat', 'screen', 'moon', 'star', 'bolt', 'power', 'clock'];
+
+function openDialEdit(idx) {
+  if (idx < 0 || idx >= D.length) return;
+  editingDialIdx = idx;
+  const d = D[idx];
+
+  let selC = d.c || DIAL_SW[0];
+  for (const sw of DIAL_SW) {
+    if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
+  }
+
+  dialEd = {
+    n: d.n || 'Channel',
+    i: d.i || 'mic',
+    c: selC,
+    role: d.role || 'master',
+    v: d.v !== undefined ? d.v : 75,
+    m: !!d.m
+  };
+
+  $('dial-fl').value = dialEd.n;
+  $('dial-emo').value = P[dialEd.i] ? '' : dialEd.i;
+
+  // Render icons & swatches
+  $('dial-icons').innerHTML = DIAL_ICONS.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n] || P.mic}"/></svg></button>`).join('');
+  $('dial-sws').innerHTML = DIAL_SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
+
+  // Reorder buttons state
+  $('dial-move-left').disabled = (editingDialIdx <= 0);
+  $('dial-move-right').disabled = (editingDialIdx >= D.length - 1);
+  $('dial-del-btn').disabled = (D.length <= 2);
+  $('dial-del-btn').title = D.length <= 2 ? 'At least 2 channels required' : 'Delete this channel';
+
+  updateDialSheetPreview();
+  document.body.classList.add('dso');
+  if ($('wrap')) $('wrap').inert = true;
+  setTimeout(() => $('dial-fl').focus({ preventScroll: true }), 340);
+}
+
+function updateDialSheetPreview() {
+  if (!dialEd) return;
+  const pv = $('dial-pv'), s = $('dial-sheet');
+  pv.style.setProperty('--c1', dialEd.c[0]);
+  pv.style.setProperty('--c2', dialEd.c[1]);
+  s.style.setProperty('--a', dialEd.c[0]);
+  s.style.setProperty('--b', dialEd.c[1]);
+
+  $('dpv-name').textContent = dialEd.n || 'Channel';
+  $('dpv-ic').innerHTML = ic(dialEd.i);
+  $('dpv-meter').style.width = dialEd.v + '%';
+  $('dpv-val').textContent = dialEd.role === 'lights' ? (dialEd.v === 0 ? 'Off' : dialEd.v + '%') : (dialEd.m ? 'Muted' : dialEd.v + '%');
+  $('dial-sub').textContent = 'Editing ' + (D[editingDialIdx] ? D[editingDialIdx].n : 'Channel');
+
+  // Active role pill
+  document.querySelectorAll('#dial-roles .drole-btn').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.role === dialEd.role);
+  });
+
+  // Active icon & color
+  document.querySelectorAll('#dial-icons .ic-t').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.n === dialEd.i);
+  });
+  document.querySelectorAll('#dial-sws .sw-c').forEach((b, i) => {
+    b.setAttribute('aria-pressed', DIAL_SW[i][0] === dialEd.c[0]);
+  });
+}
+
+function closeDialSheet() {
+  document.body.classList.remove('dso');
+  if ($('wrap')) $('wrap').inert = false;
+  if ($('edt')) $('edt').focus({ preventScroll: true });
+}
+
+function addNewDialChannel() {
+  const newIdx = D.length;
+  const newName = 'Dial ' + (newIdx + 1);
+  const color = DIAL_SW[newIdx % DIAL_SW.length];
+  D.push({
+    n: newName,
+    i: 'wave',
+    v: 75,
+    m: 0,
+    c: color,
+    role: 'master'
+  });
+  saveDialsData();
+  renderStrip();
+  updateStripAndKnobs();
+  toast('Added channel: ' + newName);
+  setTimeout(() => {
+    const segW = calcSegmentWidth();
+    if (segW) stripScroll.scrollTo({ left: newIdx * segW, behavior: 'smooth' });
+    openDialEdit(newIdx);
+  }, 100);
+}
+
+$('dial-sx').onclick = $('dial-scx').onclick = closeDialSheet;
+
+$('dial-fl').oninput = e => {
+  if (dialEd) {
+    dialEd.n = e.target.value.trim() || 'Channel';
+    updateDialSheetPreview();
+  }
+};
+
+$('dial-emo').oninput = e => {
+  const v = e.target.value.trim();
+  if (v && dialEd) {
+    dialEd.i = v;
+    updateDialSheetPreview();
+  }
+};
+
+$('dial-icons').onclick = e => {
+  const b = e.target.closest('.ic-t');
+  if (b && dialEd) {
+    dialEd.i = b.dataset.n;
+    $('dial-emo').value = '';
+    updateDialSheetPreview();
+  }
+};
+
+$('dial-sws').onclick = e => {
+  const b = e.target.closest('.sw-c');
+  if (b && dialEd) {
+    dialEd.c = DIAL_SW[+b.dataset.i];
+    updateDialSheetPreview();
+  }
+};
+
+$('dial-roles').onclick = e => {
+  const b = e.target.closest('.drole-btn');
+  if (b && dialEd) {
+    dialEd.role = b.dataset.role;
+    if (dialEd.role === 'lights') {
+      dialEd.m = 0;
+    }
+    updateDialSheetPreview();
+  }
+};
+
+$('dial-move-left').onclick = () => {
+  if (editingDialIdx == null || editingDialIdx <= 0) return;
+  const temp = D[editingDialIdx];
+  D[editingDialIdx] = D[editingDialIdx - 1];
+  D[editingDialIdx - 1] = temp;
+  editingDialIdx--;
+  saveDialsData();
+  renderStrip();
+  updateStripAndKnobs();
+  openDialEdit(editingDialIdx);
+  toast('Moved left');
+};
+
+$('dial-move-right').onclick = () => {
+  if (editingDialIdx == null || editingDialIdx >= D.length - 1) return;
+  const temp = D[editingDialIdx];
+  D[editingDialIdx] = D[editingDialIdx + 1];
+  D[editingDialIdx + 1] = temp;
+  editingDialIdx++;
+  saveDialsData();
+  renderStrip();
+  updateStripAndKnobs();
+  openDialEdit(editingDialIdx);
+  toast('Moved right');
+};
+
+$('dial-del-btn').onclick = () => {
+  if (editingDialIdx == null || D.length <= 2) {
+    toast('Minimum 2 channels required');
+    return;
+  }
+  const deletedName = D[editingDialIdx].n;
+  D.splice(editingDialIdx, 1);
+  saveDialsData();
+  closeDialSheet();
+  renderStrip();
+  updateStripAndKnobs();
+  toast('Deleted channel: ' + deletedName);
+};
+
+$('dial-save').onclick = () => {
+  if (editingDialIdx == null || !dialEd || !D[editingDialIdx]) return;
+  const d = D[editingDialIdx];
+  d.n = dialEd.n || d.n || 'Channel';
+  d.i = dialEd.i || d.i || 'mic';
+  d.c = dialEd.c || d.c || DIAL_SW[0];
+  d.role = dialEd.role || d.role || 'master';
+  if (d.role === 'lights') d.m = 0;
+
+  saveDialsData();
+  closeDialSheet();
+  renderStrip();
+  updateStripAndKnobs();
+  toast('Saved dial: ' + d.n);
+};
+
+/* ── Macro Step Execution Engine ── */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const RUN = {};
+
+async function execStep(s, a, k) {
+  const B = window.DeckBridge;
+  if (B && B.run) {
+    return B.run({ id: s.a, name: a ? a.n : s.a, param: s.v, cmd: a && a.cmd });
+  }
+
+  const cat = a ? a.c : (s.a.includes(':') ? s.a.split(':')[0] : '');
+  const n = a ? a.n : (s.a.includes(':') ? s.a.split(':')[1] : s.a);
+  const v = (s.v || '').trim();
+
+  // 1. Flow commands
+  if (n === 'Wait') {
+    const sec = Math.max(0.1, parseFloat(v) || 1);
+    await sleep(sec * 1000);
+    return;
+  }
+  if (n === 'Switch deck page') {
+    if (/scene/i.test(v)) {
+      currentView = 'scenes';
+      renderKeys();
+    } else {
+      currentView = 'main';
+      const p = parseInt(v, 10);
+      if (!isNaN(p) && p >= 1 && p <= PAGES_MAIN_KEYS.length) {
+        keysSlider.scrollTo({ left: (p - 1) * keysSlider.clientWidth, behavior: 'smooth' });
+      } else {
+        renderKeys();
+      }
+    }
+    return;
+  }
+  if (n === 'Toggle this key on or off') {
+    on[k.id] = !on[k.id];
+    renderKeys();
+    return;
+  }
+
+  // 2. Apps
+  if (cat === 'Apps') {
+    const appMap = {
+      'Chrome': 'chrome',
+      'Edge': 'msedge',
+      'Firefox': 'firefox',
+      'Brave': 'brave',
+      'OBS Studio': 'obs64',
+      'Streamlabs': 'Streamlabs OBS',
+      'Spotify': 'spotify',
+      'Discord': 'discord',
+      'Steam': 'steam',
+      'VS Code': 'code',
+      'Notepad': 'notepad.exe',
+      'Calculator': 'calc.exe',
+      'Terminal': 'wt.exe',
+      'PowerShell': 'powershell.exe',
+      'Command Prompt': 'cmd.exe',
+      'File Explorer': 'explorer.exe',
+      'Task Manager': 'taskmgr.exe',
+      'Settings': 'ms-settings:',
+      'Control Panel': 'control',
+      'Snipping Tool': 'snippingtool.exe',
+      'Paint': 'mspaint.exe'
+    };
+    const target = v || appMap[n] || (a && a.cmd) || n;
+    cmd('launch', { path: target });
+    await sleep(250);
+    return;
+  }
+
+  // 3. Streaming
+  if (cat === 'Streaming') {
+    if (n === 'OBS: Start streaming') cmd('obs', { requestType: 'StartStream' });
+    else if (n === 'OBS: Stop streaming') cmd('obs', { requestType: 'StopStream' });
+    else if (n === 'OBS: Start recording') cmd('obs', { requestType: 'StartRecord' });
+    else if (n === 'OBS: Stop recording') cmd('obs', { requestType: 'StopRecord' });
+    else if (n === 'OBS: Pause or resume recording') cmd('obs', { requestType: 'ToggleRecordPause' });
+    else if (n === 'OBS: Switch scene') cmd('obs', { requestType: 'SetCurrentProgramScene', requestData: { sceneName: v } });
+    else if (n === 'OBS: Show or hide source') cmd('obs', { requestType: 'SetSceneItemEnabled', requestData: { sceneItemName: v } });
+    else if (n === 'OBS: Mute or unmute source') cmd('obs', { requestType: 'ToggleInputMute', requestData: { inputName: v } });
+    else if (n === 'OBS: Start virtual camera') cmd('obs', { requestType: 'StartVirtualCam' });
+    else if (n === 'OBS: Stop virtual camera') cmd('obs', { requestType: 'StopVirtualCam' });
+    else if (n === 'Twitch: Go live' || n === 'YouTube: Go live') cmd('obs', { requestType: 'StartStream' });
+    else if (n === 'YouTube: End stream') cmd('obs', { requestType: 'StopStream' });
+    else if (n === 'Twitch: Create clip') cmd('hotkey', { modifiers: ['alt'], key: 'x' });
+    else cmd('obs', { requestType: n.replace('OBS: ', '').trim(), requestData: { value: v } });
+    await sleep(200);
+    return;
+  }
+
+  // 4. Chat and social
+  if (cat === 'Chat and social') {
+    if (n === 'Discord: Toggle mute') cmd('hotkey', { modifiers: ['ctrl', 'shift'], key: 'm' });
+    else if (n === 'Discord: Toggle deafen') cmd('hotkey', { modifiers: ['ctrl', 'shift'], key: 'd' });
+    else if (n === 'Teams: Toggle mute') cmd('hotkey', { modifiers: ['ctrl', 'shift'], key: 'm' });
+    else if (n === 'Zoom: Toggle mute') cmd('hotkey', { modifiers: ['alt'], key: 'a' });
+    else if (n === 'Zoom: Toggle video') cmd('hotkey', { modifiers: ['alt'], key: 'v' });
+    else if (n === 'Zoom: Leave meeting') cmd('hotkey', { modifiers: ['alt'], key: 'q' });
+    else if (n === 'Steam: Launch game') cmd('launch', { path: 'steam://rungameid/' + v });
+    else if (v) cmd('macro', { text: v, pressEnter: true });
+    await sleep(200);
+    return;
+  }
+
+  // 5. System
+  if (cat === 'System') {
+    if (n === 'Volume up') cmd('media', { action: 'volUp' });
+    else if (n === 'Volume down') cmd('media', { action: 'volDown' });
+    else if (n === 'Mute or unmute system') cmd('media', { action: 'mute' });
+    else if (n === 'Set system volume') cmd('media', { action: 'setvol', value: parseInt(v, 10) || 50 });
+    else if (n === 'Take screenshot') cmd('system', { action: 'snip' });
+    else if (n === 'Open Settings page') cmd('launch', { path: v ? (v.startsWith('ms-settings:') ? v : 'ms-settings:' + v) : 'ms-settings:' });
+    else if (n === 'Open Run dialog') cmd('hotkey', { modifiers: ['win'], key: 'r' });
+    else if (n === 'Open clipboard history') cmd('hotkey', { modifiers: ['win'], key: 'v' });
+    else if (n === 'Open emoji panel') cmd('hotkey', { modifiers: ['win'], key: '.' });
+    else if (n === 'Empty recycle bin') cmd('run', { command: 'Clear-RecycleBin -Force -ErrorAction SilentlyContinue' });
+    else if (n === 'Kill process') cmd('run', { command: 'Stop-Process -Name "' + v.replace(/\.exe$/i, '') + '" -Force -ErrorAction SilentlyContinue' });
+    else if (n === 'Copy to clipboard') cmd('run', { command: 'Set-Clipboard -Value "' + v.replace(/"/g, '`"') + '"' });
+    else if (n === 'Toggle dark mode') cmd('run', { command: '$path="HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"; $cur=(Get-ItemProperty $path).AppsUseLightTheme; Set-ItemProperty $path -Name AppsUseLightTheme -Value (1-$cur)' });
+    else if (n === 'Play sound') cmd('run', { command: '(New-Object Media.SoundPlayer "' + v + '").PlaySync()' });
+    else if (n === 'Speak text') cmd('run', { command: 'Add-Type -AssemblyName System.speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("' + v.replace(/"/g, '`"') + '")' });
+    else cmd('system', { action: 'snip' });
+    await sleep(200);
+    return;
+  }
+
+  // 6. Media
+  if (cat === 'Media') {
+    if (n === 'Play or pause') cmd('media', { action: 'playPause' });
+    else if (n === 'Next track') cmd('media', { action: 'next' });
+    else if (n === 'Previous track') cmd('media', { action: 'prev' });
+    else if (n === 'Stop playback') cmd('media', { action: 'stop' });
+    else if (n === 'Spotify: Like current song') cmd('hotkey', { modifiers: ['alt', 'shift'], key: 'b' });
+    else cmd('media', { action: 'playPause' });
+    await sleep(200);
+    return;
+  }
+
+  // 7. Windows
+  if (cat === 'Windows') {
+    if (n === 'Show desktop') cmd('system', { action: 'desktop' });
+    else if (n === 'Switch window') cmd('hotkey', { modifiers: ['alt'], key: 'tab' });
+    else if (n === 'Open task view') cmd('hotkey', { modifiers: ['win'], key: 'tab' });
+    else if (n === 'Close window') cmd('hotkey', { modifiers: ['alt'], key: 'f4' });
+    else if (n === 'Minimize window') cmd('hotkey', { modifiers: ['win'], key: 'down' });
+    else if (n === 'Maximize window') cmd('hotkey', { modifiers: ['win'], key: 'up' });
+    else if (n === 'Minimize all windows') cmd('hotkey', { modifiers: ['win'], key: 'm' });
+    else if (n === 'Snap window left') cmd('hotkey', { modifiers: ['win'], key: 'left' });
+    else if (n === 'Snap window right') cmd('hotkey', { modifiers: ['win'], key: 'right' });
+    else if (n === 'New virtual desktop') cmd('hotkey', { modifiers: ['win', 'ctrl'], key: 'd' });
+    else if (n === 'Next virtual desktop') cmd('hotkey', { modifiers: ['win', 'ctrl'], key: 'right' });
+    else if (n === 'Previous virtual desktop') cmd('hotkey', { modifiers: ['win', 'ctrl'], key: 'left' });
+    else cmd('system', { action: 'desktop' });
+    await sleep(200);
+    return;
+  }
+
+  // 8. Web
+  if (cat === 'Web') {
+    let url = '';
+    if (n === 'Open website') url = /^https?:\/\//i.test(v) ? v : 'https://' + (v || 'google.com');
+    else if (n === 'Open Claude') url = 'https://claude.ai';
+    else if (n === 'Search Google') url = 'https://www.google.com/search?q=' + encodeURIComponent(v || '');
+    else if (n === 'Search YouTube') url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(v || '');
+    else if (n === 'Open Twitch channel') url = 'https://twitch.tv/' + encodeURIComponent(v || '');
+    else if (n === 'Compose Gmail') url = 'https://mail.google.com/mail/?view=cm&to=' + encodeURIComponent(v || '');
+    else if (v) url = /^https?:\/\//i.test(v) ? v : 'https://' + v;
+    if (url) cmd('launch', { path: url });
+    await sleep(250);
+    return;
+  }
+
+  // 9. Keyboard and mouse
+  if (cat === 'Keyboard and mouse') {
+    if (n === 'Press hotkey') {
+      const pts = (v || 'ctrl+c').toLowerCase().split('+').map(x => x.trim()).filter(Boolean);
+      const kName = pts.pop() || '';
+      cmd('hotkey', { modifiers: pts, key: kName });
+    } else if (n === 'Type text' || n === 'Paste snippet') {
+      cmd('macro', { text: v || '', pressEnter: false });
+    } else if (n === 'Press key') {
+      cmd('hotkey', { modifiers: [], key: v.toLowerCase() });
+    }
+    await sleep(200);
+    return;
+  }
+
+  // 10. Files and scripts
+  if (cat === 'Files and scripts') {
+    if (n === 'Run command' || n === 'Run PowerShell') {
+      cmd('run', { command: v });
+    } else {
+      cmd('launch', { path: v });
+    }
+    await sleep(250);
+    return;
+  }
+
+  // 11. Power
+  if (cat === 'Power') {
+    if (n === 'Lock PC') cmd('system', { action: 'lock' });
+    else if (n === 'Sleep') cmd('system', { action: 'sleep' });
+    else if (n === 'Hibernate') cmd('run', { command: 'shutdown /h' });
+    else if (n === 'Turn off display') cmd('run', { command: '(Add-Type \'[DllImport(\"user32.dll\")]public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);\' -Name a -PassThru)::SendMessage(-1, 0x0112, 0xF170, 2)' });
+    else if (n === 'Restart PC') cmd('run', { command: 'shutdown /r /t 5' });
+    else if (n === 'Shut down PC') cmd('run', { command: 'shutdown /s /t 5' });
+    else if (n === 'Sign out') cmd('run', { command: 'shutdown /l' });
+    else if (n === 'Cancel scheduled shutdown') cmd('run', { command: 'shutdown /a' });
+    else if (n === 'Shut down in') {
+      const min = Math.max(1, parseInt(v, 10) || 30);
+      cmd('run', { command: 'shutdown /s /t ' + (min * 60) });
+    }
+    await sleep(250);
+    return;
+  }
+
+  // Default fallback: launch path or command
+  if (v) {
+    if (v.includes(' ') || v.includes('|') || v.includes('&')) {
+      cmd('run', { command: v });
+    } else {
+      cmd('launch', { path: v });
+    }
+  }
+  await sleep(200);
+}
+
+async function runSteps(k, st, bEl) {
+  if (RUN[k.id]) return;
+  RUN[k.id] = 1;
+  const find = () => bEl || [...document.querySelectorAll('.key')].find(b => b.dataset.id === k.id);
+
+  try {
+    for (let n = 0; n < st.length; n++) {
+      const s = st[n], a = A[s.a], b = find();
+      if (b) {
+        b.classList.add('run');
+        if (st.length > 1) {
+          const lbl = b.querySelector('span:not(.n)');
+          if (lbl) lbl.textContent = `${n + 1} of ${st.length}`;
+        }
+      }
+      toast((st.length > 1 ? `${n + 1}/${st.length}  ` : '') + (a ? a.n : s.a) + (s.v ? ': ' + s.v : ''));
+      await execStep(s, a, k);
+    }
+    toast(st.length > 1 ? 'Macro finished' : 'Done');
+  } catch (err) {
+    toast('Error in step: ' + err.message);
+  } finally {
+    RUN[k.id] = 0;
+    renderKeys();
+  }
+}
+
+/* ── Grid & Pages Layout Controller ── */
+let deckSizeMode = localStorage.getItem('dp_deck_size') || 'normal';
+let cardShapeMode = localStorage.getItem('dp_card_shape') || 'square';
+let dispMode = localStorage.getItem('dp_disp_mode') || '4';
+
+let tempGridCols = deckCols;
+let tempGridRows = deckRows;
+let tempDeckSize = deckSizeMode;
+let tempCardShape = cardShapeMode;
+let tempDispMode = dispMode;
+
+function applyDeckSizing(size, shape, disp) {
+  deckSizeMode = size || deckSizeMode;
+  cardShapeMode = shape || cardShapeMode;
+  dispMode = disp || dispMode;
+
+  document.body.classList.remove('size-mini', 'size-compact', 'size-large');
+  if (deckSizeMode === 'mini') document.body.classList.add('size-mini');
+  else if (deckSizeMode === 'compact') document.body.classList.add('size-compact');
+  else if (deckSizeMode === 'large') document.body.classList.add('size-large');
+
+  document.body.classList.toggle('card-slim', cardShapeMode === 'slim');
+  document.body.classList.toggle('disp-2-dials', dispMode === '2');
+  document.body.classList.toggle('disp-hidden', dispMode === 'hidden');
+
+  localStorage.setItem('dp_deck_size', deckSizeMode);
+  localStorage.setItem('dp_card_shape', cardShapeMode);
+  localStorage.setItem('dp_disp_mode', dispMode);
+
+  const hintEl = $('bottom-hint');
+  if (hintEl) {
+    if (dispMode === 'hidden') {
+      hintEl.textContent = 'Swipe keys horizontally to navigate pages';
+    } else if (dispMode === '2') {
+      hintEl.textContent = 'Swipe keys horizontally · Scroll display bar · 2 knobs match visible items';
+    } else {
+      hintEl.textContent = 'Swipe keys horizontally · Scroll display bar · 4 knobs match visible items';
+    }
+  }
+
+  updateSegmentWidths();
+  updateStripAndKnobs();
+}
+
+function openGridSheet() {
+  tempGridCols = deckCols;
+  tempGridRows = deckRows;
+  tempDeckSize = deckSizeMode;
+  tempCardShape = cardShapeMode;
+  tempDispMode = dispMode;
+  updateGridSheetUI();
+  document.body.classList.add('gso');
+}
+
+function closeGridSheet() {
+  document.body.classList.remove('gso');
+}
+
+function updateGridSheetUI() {
+  const colVal = $('col-val');
+  const rowVal = $('row-val');
+  const totalKeys = $('grid-total-keys');
+  const pagesCountLbl = $('pages-count-lbl');
+  const gpvGrid = $('gpv-grid');
+  const pagesList = $('pages-list');
+
+  if (colVal) colVal.textContent = tempGridCols;
+  if (rowVal) rowVal.textContent = tempGridRows;
+  if (totalKeys) totalKeys.textContent = `${tempGridCols * tempGridRows} keys per page`;
+  if (pagesCountLbl) pagesCountLbl.textContent = `${PAGES_MAIN_KEYS.length} page${PAGES_MAIN_KEYS.length === 1 ? '' : 's'}`;
+
+  // Update preset buttons active state
+  document.querySelectorAll('.presets-row .pr-btn').forEach(btn => {
+    const c = parseInt(btn.dataset.cols, 10);
+    const r = parseInt(btn.dataset.rows, 10);
+    const isActive = (c === tempGridCols && r === tempGridRows);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  // Update Deck Size preset buttons
+  document.querySelectorAll('#deck-size-presets button').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.size === tempDeckSize ? 'true' : 'false');
+  });
+
+  // Update Card Shape preset buttons
+  document.querySelectorAll('#card-shape-presets button').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.shape === tempCardShape ? 'true' : 'false');
+  });
+
+  // Update Display Mode preset buttons
+  document.querySelectorAll('#disp-mode-presets button').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.disp === tempDispMode ? 'true' : 'false');
+  });
+
+  // Render Mini Preview Grid
+  if (gpvGrid) {
+    gpvGrid.style.gridTemplateColumns = `repeat(${tempGridCols}, 1fr)`;
+    gpvGrid.style.gridTemplateRows = `repeat(${tempGridRows}, 1fr)`;
+    const count = tempGridCols * tempGridRows;
+    let cellsHtml = '';
+    for (let i = 0; i < count; i++) {
+      cellsHtml += '<div class="gpv-cell"></div>';
+    }
+    gpvGrid.innerHTML = cellsHtml;
+  }
+
+  // Render Pages List
+  if (pagesList) {
+    pagesList.innerHTML = PAGES_MAIN_KEYS.map((_, pIdx) => {
+      const pKeys = ensurePageKeys(pIdx);
+      const activeLabels = pKeys.map(kId => def(kId).l).filter(Boolean);
+      const labels = activeLabels.length > 0 ? activeLabels.slice(0, 3).join(', ') : 'Empty (+) slots';
+      const canDelete = PAGES_MAIN_KEYS.length > 1;
+      return `
+        <div class="page-item-row" data-page-idx="${pIdx}">
+          <div class="page-item-info">
+            <span class="page-badge">Page ${pIdx + 1}</span>
+            <span>${pKeys.length} keys <span style="opacity:0.6;font-size:0.75rem;margin-left:4px;">(${labels})</span></span>
+          </div>
+          ${canDelete ? `<button type="button" class="page-del-btn" data-del-page="${pIdx}" title="Delete Page ${pIdx + 1}">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// Grid button in top right
+const gridBtn = $('grid-btn');
+if (gridBtn) gridBtn.onclick = openGridSheet;
+
+// Close buttons for grid sheet
+const gridSx = $('grid-sx');
+if (gridSx) gridSx.onclick = closeGridSheet;
+const gridScx = $('grid-scx');
+if (gridScx) gridScx.onclick = closeGridSheet;
+
+// Add Page buttons
+const addPageBtn = $('v-add-page-btn');
+if (addPageBtn) addPageBtn.onclick = addNewDeckPage;
+
+const modalAddPageBtn = $('modal-add-page-btn');
+if (modalAddPageBtn) modalAddPageBtn.onclick = () => {
+  addNewDeckPage();
+  updateGridSheetUI();
+};
+
+// Steppers for columns and rows
+const colDec = $('col-dec');
+if (colDec) colDec.onclick = () => {
+  if (tempGridCols > 2) {
+    tempGridCols--;
+    updateGridSheetUI();
+  }
+};
+const colInc = $('col-inc');
+if (colInc) colInc.onclick = () => {
+  if (tempGridCols < 6) {
+    tempGridCols++;
+    updateGridSheetUI();
+  }
+};
+const rowDec = $('row-dec');
+if (rowDec) rowDec.onclick = () => {
+  if (tempGridRows > 1) {
+    tempGridRows--;
+    updateGridSheetUI();
+  }
+};
+const rowInc = $('row-inc');
+if (rowInc) rowInc.onclick = () => {
+  if (tempGridRows < 4) {
+    tempGridRows++;
+    updateGridSheetUI();
+  }
+};
+
+// Presets (3x2, 4x2, 5x3, 6x2)
+document.querySelectorAll('.presets-row .pr-btn').forEach(btn => {
+  btn.onclick = () => {
+    const c = parseInt(btn.dataset.cols, 10);
+    const r = parseInt(btn.dataset.rows, 10);
+    if (!isNaN(c) && !isNaN(r)) {
+      tempGridCols = c;
+      tempGridRows = r;
+      updateGridSheetUI();
+    }
+  };
+});
+
+// Sizing & Reduction Presets Click Handlers
+const deckSizePresetsEl = $('deck-size-presets');
+if (deckSizePresetsEl) {
+  deckSizePresetsEl.onclick = e => {
+    const btn = e.target.closest('button');
+    if (btn && btn.dataset.size) {
+      tempDeckSize = btn.dataset.size;
+      updateGridSheetUI();
+    }
+  };
+}
+
+const cardShapePresetsEl = $('card-shape-presets');
+if (cardShapePresetsEl) {
+  cardShapePresetsEl.onclick = e => {
+    const btn = e.target.closest('button');
+    if (btn && btn.dataset.shape) {
+      tempCardShape = btn.dataset.shape;
+      updateGridSheetUI();
+    }
+  };
+}
+
+const dispModePresetsEl = $('disp-mode-presets');
+if (dispModePresetsEl) {
+  dispModePresetsEl.onclick = e => {
+    const btn = e.target.closest('button');
+    if (btn && btn.dataset.disp) {
+      tempDispMode = btn.dataset.disp;
+      updateGridSheetUI();
+    }
+  };
+}
+
+// Delete page inside modal
+const pagesListEl = $('pages-list');
+if (pagesListEl) {
+  pagesListEl.onclick = e => {
+    const delBtn = e.target.closest('.page-del-btn');
+    if (!delBtn) return;
+    const pIdx = parseInt(delBtn.dataset.delPage, 10);
+    if (!isNaN(pIdx)) {
+      removeDeckPage(pIdx);
+    }
+  };
+}
+
+// Reset button inside modal
+const gridResetBtn = $('grid-reset-btn');
+if (gridResetBtn) {
+  gridResetBtn.onclick = () => {
+    tempGridCols = 4;
+    tempGridRows = 2;
+    tempDeckSize = 'normal';
+    tempCardShape = 'square';
+    tempDispMode = '4';
+    PAGES_MAIN_KEYS = JSON.parse(JSON.stringify(DEFAULT_PAGES_MAIN));
+    savePagesData();
+    updateGridSheetUI();
+    toast('Reset grid and sizing to default');
+  };
+}
+
+// Apply layout button
+const gridSaveBtn = $('grid-save-btn');
+if (gridSaveBtn) {
+  gridSaveBtn.onclick = () => {
+    deckCols = tempGridCols;
+    deckRows = tempGridRows;
+    document.documentElement.style.setProperty('--deck-cols', deckCols);
+    document.documentElement.style.setProperty('--deck-rows', deckRows);
+    savePagesData();
+    applyDeckSizing(tempDeckSize, tempCardShape, tempDispMode);
+    renderKeys();
+    closeGridSheet();
+    toast(`Layout & sizing applied: ${deckCols} × ${deckRows}`);
+  };
+}
+
+$('sx').onclick = $('scx').onclick = closeSheet;
+$('sbg').onclick = () => {
+  if (document.body.classList.contains('gso')) closeGridSheet();
+  else if (document.body.classList.contains('dso')) closeDialSheet();
+  else if (document.body.classList.contains('so')) closeSheet();
+};
+
+// Edit button toggle
+$('edt').addEventListener('click', () => {
+  isEditMode = !isEditMode;
+  $('edt').setAttribute('aria-pressed', isEditMode);
+  $('edt').textContent = isEditMode ? 'Done' : 'Edit';
+  keysSlider.classList.toggle('editing', isEditMode);
+  document.body.classList.toggle('editing', isEditMode);
+  renderStrip();
+  updateStripAndKnobs();
+  toast(isEditMode ? 'Tap any key or dial to customize it' : 'Edit mode closed');
+});
+
+// Theme button
+$('thm').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('dp_theme', next);
+  toast('Theme: ' + next.toUpperCase());
+});
+const svdTheme = localStorage.getItem('dp_theme');
+if (svdTheme) document.documentElement.setAttribute('data-theme', svdTheme);
+
+/* ── Init ── */
+applyDeckSizing(deckSizeMode, cardShapeMode, dispMode);
+renderKeys();
+renderStrip();
+updateStripAndKnobs();
+connectWS();
+
+// Restore saved buttons page and display bar scroll position
+setTimeout(() => {
+  try {
+    const savedPage = parseInt(localStorage.getItem('dp_keys_page_idx'), 10);
+    if (!isNaN(savedPage) && savedPage >= 0 && savedPage < PAGES_MAIN_KEYS.length) {
+      goToKeysPage(savedPage);
+    }
+  } catch (_) {}
+
+  try {
+    const savedStripIdx = parseInt(localStorage.getItem('dp_strip_scroll_idx'), 10);
+    const maxVisible = Math.max(0, D.length - (dispMode === '2' ? 2 : 4));
+    if (!isNaN(savedStripIdx) && savedStripIdx >= 0 && savedStripIdx <= maxVisible) {
+      currentVisibleStartIdx = savedStripIdx;
+      const segW = calcSegmentWidth();
+      stripScroll.scrollLeft = savedStripIdx * segW;
+      updateStripAndKnobs();
+    }
+  } catch (_) {}
+}, 60);
+</script>
+</body>
+</html>
