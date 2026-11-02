@@ -9,7 +9,7 @@ import * as pairing from './pairing.js';
 
 async function handleCommand(data) {
   // data format: { id, type: 'command', action: '...', payload: {...}, token: '...' }
-  const { action, payload } = data;
+  const { action, payload = {} } = data;
   
   try {
     switch (action) {
@@ -27,6 +27,14 @@ async function handleCommand(data) {
         return { status: 'ok' };
       case 'system':
         await systemExec.executeSystem(payload);
+        return { status: 'ok' };
+      case 'snip':
+      case 'snap':
+      case 'screenshot':
+        await systemExec.executeSystem({ action: 'snip' });
+        return { status: 'ok' };
+      case 'desktop':
+        await systemExec.executeSystem({ action: 'desktop' });
         return { status: 'ok' };
       case 'obs':
         await obsExec.executeOBS(payload);

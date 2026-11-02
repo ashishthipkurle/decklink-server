@@ -1,4 +1,6 @@
 import { sendNativeCommand } from '../native-engine.js';
+import { triggerScreenshot, toggleDesktop } from './powershell-engine.js';
+import { exec } from 'child_process';
 
 const winModVK = {
   'ctrl': 17, // VK_CONTROL
@@ -36,6 +38,13 @@ async function executeHotkey(payload) {
   // Special case: Windows Snipping Tool (Win + Shift + S)
   if ((lowerMods.includes('win') || lowerMods.includes('meta')) && lowerMods.includes('shift') && lowerKey === 's') {
     sendNativeCommand('snip');
+    return { status: 'ok' };
+  }
+
+  // Special case: Toggle Desktop (Win + D)
+  if ((lowerMods.includes('win') || lowerMods.includes('meta')) && lowerKey === 'd' && lowerMods.length === 1) {
+    toggleDesktop();
+    sendNativeCommand('desktop');
     return { status: 'ok' };
   }
 

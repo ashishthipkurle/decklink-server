@@ -157,6 +157,15 @@ function getServerPort() {
   return store.get('server.port', 8765);
 }
 
+function getAutoStart() {
+  return Boolean(store.get('server.autoStart', false));
+}
+
+function setAutoStart(val) {
+  store.set('server.autoStart', Boolean(val));
+  return Boolean(val);
+}
+
 export {
   store,
   USB_AUTO_TOKEN,
@@ -166,5 +175,7 @@ export {
   removePairedDevice,
   updateDeviceLastConnected,
   isTokenValid,
-  getServerPort
+  getServerPort,
+  getAutoStart,
+  setAutoStart
 };

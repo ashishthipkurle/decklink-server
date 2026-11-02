@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#070a15">
+<meta name="theme-color" id="theme-color-meta" content="#d5dcf0">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#070a15">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#d5dcf0">
 <title>DeckLink+ - Stream Deck</title>
 <link rel="manifest" href="/manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
+  background-color: #070a15 !important;
   --bg1: #1a2040;
   --bg2: #070a15;
   --fg: #e8ecfb;
@@ -27,11 +30,10 @@
   --strip-num: #fff;
   color-scheme: dark;
   box-sizing: border-box;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-:root[data-theme="light"] {
+:root[data-theme="light"], html[data-theme="light"], body[data-theme="light"] {
+  background-color: #d5dcf0 !important;
   --bg1: #f4f6fd;
   --bg2: #d5dcf0;
   --fg: #1a2040;
@@ -48,22 +50,42 @@
   color-scheme: light;
 }
 
-html { height: 100%; }
+html {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg2, #d5dcf0) !important;
+  background: radial-gradient(90% 70% at 50% 0%, var(--bg1), var(--bg2)) !important;
+  background-attachment: fixed !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  min-height: 100%;
-  background: radial-gradient(90% 70% at 50% 0%, var(--bg1), var(--bg2));
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: max(8px, env(safe-area-inset-top, 8px)) max(12px, env(safe-area-inset-right, 12px)) max(18px, env(safe-area-inset-bottom, 18px)) max(12px, env(safe-area-inset-left, 12px));
+  background-color: var(--bg2, #d5dcf0) !important;
+  background: radial-gradient(90% 70% at 50% 0%, var(--bg1), var(--bg2)) !important;
+  background-attachment: fixed !important;
   color: var(--fg);
   font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 12px;
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -71,11 +93,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .wrap {
   width: min(var(--deck-max-width, 780px), 100%);
+  margin: auto;
+  padding: 6px 0 20px 0;
   transition: width .3s ease;
+  flex-shrink: 0;
 }
 
 /* ── Device Top Bar (Inside Hardware Shell) ── */
 .device-top {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -90,6 +116,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+  z-index: 2;
 }
 
 .conn-led {
@@ -118,12 +145,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 
 .device-top-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .brand {
@@ -159,6 +190,50 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   gap: 8px;
   flex: 0 0 auto;
   min-width: max-content;
+  margin-left: auto;
+  z-index: 2;
+}
+
+/* ── Pull to Refresh ── */
+.ptr-indicator {
+  position: fixed;
+  top: max(env(safe-area-inset-top, 14px), 14px);
+  left: 50%;
+  transform: translate(-50%, -90px);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 18px;
+  background: var(--card-bg, #ffffff);
+  color: var(--fg, #1a2040);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  z-index: 999999;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+:root[data-theme="light"] .ptr-indicator {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #1a2040;
+}
+.ptr-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  color: #7a5cff;
+}
+.ptr-indicator.refreshing .ptr-icon svg {
+  animation: ptr-spin 0.7s linear infinite;
+}
+@keyframes ptr-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .edit {
@@ -222,7 +297,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   scrollbar-width: none;
   width: 100%;
   border-radius: 24px;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
   padding: 8px 0 10px 0;
   margin: 0;
 }
@@ -690,6 +765,152 @@ body.editing .seg::before {
   border-color: transparent;
   box-shadow: 0 4px 12px -3px var(--b, #6a4cf0);
 }
+
+/* Audio Targets & Connected Devices Selector */
+.dial-targets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px;
+  margin: 6px 0 12px 0;
+}
+.dial-cat-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0 8px 0;
+  margin: 6px 0 8px 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.dial-cat-tabs::-webkit-scrollbar {
+  display: none;
+}
+.dial-cat-tab {
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--fld, rgba(255,255,255,0.7));
+  border: 1.5px solid var(--ln, rgba(0,0,0,0.08));
+  color: var(--dim, #666);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .18s ease;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.dial-cat-tab:active {
+  transform: scale(0.96);
+}
+.dial-cat-tab.active {
+  background: linear-gradient(135deg, var(--a, #7a5cff), var(--b, #6a4cf0));
+  color: #ffffff;
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: 0 4px 12px -2px var(--b, #6a4cf0);
+}
+.dial-group-title {
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--dim, #717694);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dial-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+}
+.dial-card {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--fld);
+  border: 1.5px solid var(--ln);
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all .18s ease;
+  text-align: left;
+  user-select: none;
+  touch-action: manipulation;
+}
+.dial-card:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.dial-card[aria-selected="true"], .dial-card.selected {
+  background: linear-gradient(135deg, var(--a, #7a5cff), var(--b, #6a4cf0));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px -3px var(--b, #6a4cf0);
+}
+.dial-card[aria-selected="true"] .dial-card-sub, .dial-card.selected .dial-card-sub {
+  color: rgba(255, 255, 255, 0.78);
+}
+.dial-card svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  flex-shrink: 0;
+}
+.dial-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+.dial-card-name {
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dial-card-sub {
+  font-size: .65rem;
+  color: var(--dim, #8f95b2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge-live {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.rescan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  border: 1px solid var(--ln);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.rescan-btn:hover {
+  background: color-mix(in srgb, var(--fg) 16%, transparent);
+}
 .dial-actions-bar {
   display: flex;
   gap: 8px;
@@ -1030,10 +1251,7 @@ body.disp-hidden .deck-keys-wrap {
 }
 
 .hint {
-  margin: 12px 6px 0;
-  color: var(--dim);
-  font-size: .84rem;
-  text-align: center;
+  display: none !important;
 }
 
 .toast {
@@ -1538,6 +1756,16 @@ body.pk.so .sheet {
 </style>
 </head>
 <body>
+<div id="ptr-indicator" class="ptr-indicator">
+  <div class="ptr-icon" id="ptr-icon">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      <polyline points="21 3 21 9 15 9"/>
+    </svg>
+  </div>
+  <span class="ptr-text" id="ptr-text">Pull to refresh</span>
+</div>
+<div id="deck-bg" style="position: fixed; top: -50vh; left: -50vw; width: 200vw; height: 200vh; z-index: -99999; pointer-events: none; background-color: var(--bg2, #d5dcf0); background: radial-gradient(90% 70% at 50% 0%, var(--bg1), var(--bg2));"></div>
 <div class="wrap" id="wrap">
   <div class="device">
     <!-- Inside-the-Deck Top Bar -->
@@ -1584,8 +1812,6 @@ body.pk.so .sheet {
       <div class="cell"><button class="knob" data-slot="3" aria-label="Dial 4"><span class="cap"></span></button></div>
     </div>
   </div>
-
-  <p class="hint" id="bottom-hint">Swipe keys horizontally · Scroll display bar · 4 knobs match visible items</p>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
@@ -1660,13 +1886,21 @@ body.pk.so .sheet {
   <div class="fl-t">Channel Label</div>
   <input class="sh-in" id="dial-fl" maxlength="14" autocomplete="off" placeholder="e.g. Mic, Headset, Spotify, Lights">
 
-  <div class="fl-t">Control Type / Role</div>
-  <div class="dial-role-pills" id="dial-roles">
-    <button type="button" class="drole-btn" data-role="master">🎧 Master Audio</button>
-    <button type="button" class="drole-btn" data-role="mic">🎙️ Microphone</button>
-    <button type="button" class="drole-btn" data-role="app">🎵 App Volume</button>
-    <button type="button" class="drole-btn" data-role="lights">💡 Smart Lights</button>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; margin-bottom:2px;">
+    <div class="fl-t" style="margin:0;">Select Audio Device / Target</div>
+    <button type="button" class="rescan-btn" id="dial-rescan-btn">🔄 Detect Devices</button>
   </div>
+  <div class="dial-cat-tabs" id="dial-cat-tabs">
+    <button type="button" class="dial-cat-tab active" data-cat="all">All Targets</button>
+    <button type="button" class="dial-cat-tab" data-cat="apps">🎮 Apps & Games</button>
+    <button type="button" class="dial-cat-tab" data-cat="output">🎧 Output / Speakers</button>
+    <button type="button" class="dial-cat-tab" data-cat="input">🎙️ Microphones</button>
+    <button type="button" class="dial-cat-tab" data-cat="lights">💡 Lights & Display</button>
+  </div>
+  <div class="dial-targets-container" id="dial-targets-list"></div>
+
+  <div class="fl-t" style="margin-top:8px;">Or Enter Custom Target / Process</div>
+  <input class="sh-in sm" id="dial-custom-target" autocomplete="off" placeholder="e.g. discord, spotify, valorant, chrome">
 
   <div class="fl-t">Icon</div>
   <div class="icons" id="dial-icons"></div>
@@ -2059,14 +2293,14 @@ let editKeyId = null;
 
 /* ── Display Strip Channels ── */
 const DEFAULT_DIALS = [
-  { n: 'Mic',     i: 'mic',   v: 72, m: 0, c: ['#ff5a93', '#ffb36b'], role: 'mic' },
-  { n: 'Game',    i: 'game',  v: 55, m: 0, c: ['#6a8bff', '#34d6ff'], role: 'master' },
-  { n: 'Headset', i: 'head',  v: 80, m: 0, c: ['#a48aff', '#ff5a93'], role: 'master' },
-  { n: 'Lights',  i: 'bulb',  v: 40, m: 0, c: ['#ffcf6a', '#ff8a4f'], role: 'lights' },
-  { n: 'Music',   i: 'play',  v: 60, m: 0, c: ['#4fe3a3', '#18a0a8'], role: 'master' },
-  { n: 'Discord', i: 'chat',  v: 85, m: 0, c: ['#a48aff', '#6a4cf0'], role: 'mic' },
-  { n: 'Browser', i: 'screen',v: 70, m: 0, c: ['#34d6ff', '#6a8bff'], role: 'master' },
-  { n: 'System',  i: 'moon',  v: 50, m: 0, c: ['#ff5a93', '#ff5f6d'], role: 'master' }
+  { n: 'Master',  i: 'head',   v: 80, m: 0, c: ['#6a8bff', '#34d6ff'], role: 'master', targetType: 'master', target: '' },
+  { n: 'Mic',     i: 'mic',    v: 72, m: 0, c: ['#ff5a93', '#ffb36b'], role: 'mic',    targetType: 'mic',    target: '' },
+  { n: 'Browser', i: 'screen', v: 70, m: 0, c: ['#a48aff', '#ff5a93'], role: 'app',    targetType: 'app',    target: 'browser' },
+  { n: 'Lights',  i: 'bulb',   v: 40, m: 0, c: ['#ffcf6a', '#ff8a4f'], role: 'lights', targetType: 'brightness', target: '' },
+  { n: 'Game',    i: 'game',   v: 55, m: 0, c: ['#6a8bff', '#34d6ff'], role: 'app',    targetType: 'app',    target: 'game' },
+  { n: 'Music',   i: 'play',   v: 60, m: 0, c: ['#4fe3a3', '#18a0a8'], role: 'app',    targetType: 'app',    target: 'spotify' },
+  { n: 'Discord', i: 'chat',   v: 85, m: 0, c: ['#a48aff', '#6a4cf0'], role: 'app',    targetType: 'app',    target: 'discord' },
+  { n: 'System',  i: 'moon',   v: 50, m: 0, c: ['#ff5a93', '#ff5f6d'], role: 'master', targetType: 'master', target: '' }
 ];
 
 let D = [];
@@ -2080,6 +2314,20 @@ try {
 } catch (_) {
   D = JSON.parse(JSON.stringify(DEFAULT_DIALS));
 }
+
+// Normalize channel properties for backward compatibility
+D.forEach(d => {
+  if (!d.targetType) {
+    if (d.role === 'lights') d.targetType = 'brightness';
+    else if (d.role === 'mic') d.targetType = 'mic';
+    else if (d.target && /game|browser|chrome|edge|brave|firefox|discord|spotify/i.test(d.target)) d.targetType = 'app';
+    else if (d.role === 'app') d.targetType = 'app';
+    else if (/game/i.test(d.n)) { d.targetType = 'app'; d.target = 'game'; }
+    else if (/browser/i.test(d.n)) { d.targetType = 'app'; d.target = 'browser'; }
+    else if (/headset/i.test(d.n)) { d.targetType = 'device'; d.target = 'Headset'; }
+    else d.targetType = 'master';
+  }
+});
 
 // Restore saved channel volumes & mute states
 try {
@@ -2112,18 +2360,36 @@ function saveDialsData() {
 
 /* ── WebSocket Connection ── */
 let ws = null, reconT = null;
+function getTargetWsHost() {
+  if (location.host && location.protocol !== 'file:') {
+    return location.host;
+  }
+  return localStorage.getItem('dp_server_host') || '10.174.17.45:8765';
+}
+
 function connectWS() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  const targetHost = getTargetWsHost();
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   $('sb').className = 'conn-led conn';
-  $('sb').title = 'Status: Connecting...';
+  $('sb').title = 'Status: Connecting to ' + targetHost + '...';
   try {
-    ws = new WebSocket(`${proto}//${location.host}/?token=decklink-usb-auto`);
+    ws = new WebSocket(`${proto}//${targetHost}/?token=decklink-usb-auto`);
     ws.onopen = () => {
       $('sb').className = 'conn-led';
       $('sb').title = 'Status: Connected';
       if (reconT) clearTimeout(reconT);
       ws.send(JSON.stringify({ type: 'handshake', client: 'DeckLink+ Web', token: 'decklink-usb-auto', timestamp: Date.now() }));
+      ws.send(JSON.stringify({ type: 'get-audio-devices' }));
+      fetchAudioDevices();
+    };
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'audio-devices' && msg.data) {
+          onAudioDevicesReceived(msg.data);
+        }
+      } catch (_) {}
     };
     ws.onclose = () => {
       $('sb').className = 'conn-led off';
@@ -2164,12 +2430,15 @@ function openPairSheet() {
     pairSub.textContent = isConn ? 'Companion Connected · Ready for Phone' : (isConnecting ? 'Connecting to PC Companion...' : 'Offline · Ensure PC Companion is Running');
   }
 
-  const currentOrigin = window.location.origin.includes('http') ? window.location.origin : 'http://localhost:8765';
-  $('pair-url-input').value = currentOrigin;
+  const isDirectIp = window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1') && window.location.origin.startsWith('http');
+  const initialOrigin = isDirectIp ? window.location.origin : (localStorage.getItem('dp_server_host') ? 'http://' + localStorage.getItem('dp_server_host') : 'http://10.174.17.45:8765');
+  $('pair-url-input').value = initialOrigin;
 
   // Fetch /api/info from server to get accurate local Wi-Fi IP and pre-generated QR code
   fetch('/api/info').then(r => r.json()).then(data => {
-    if (data.deckUrl) $('pair-url-input').value = data.deckUrl;
+    if (!isDirectIp && data.deckUrl) {
+      $('pair-url-input').value = data.deckUrl;
+    }
     if (data.qrDataUrl) {
       $('pair-qr-img').src = data.qrDataUrl;
       $('pair-qr-img').style.display = 'block';
@@ -2186,6 +2455,16 @@ function openPairSheet() {
 
 function closePairSheet() {
   document.body.classList.remove('pso');
+  const raw = ($('pair-url-input').value || '').trim();
+  const cleaned = raw.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  if (cleaned && cleaned !== getTargetWsHost()) {
+    localStorage.setItem('dp_server_host', cleaned);
+    toast('Saved server: ' + cleaned);
+    if (ws) {
+      try { ws.close(); } catch (_) {}
+    }
+    setTimeout(connectWS, 200);
+  }
 }
 
 $('sb').addEventListener('click', openPairSheet);
@@ -2756,7 +3035,16 @@ function sendDialVolumeToPC(itemIdx, val) {
   dialCmdTimer = setTimeout(() => {
     const d = D[itemIdx];
     if (!d) return;
-    if (d.role === 'mic') {
+    const tType = d.targetType || (d.role === 'mic' ? 'mic' : (d.role === 'lights' ? 'brightness' : (d.role === 'app' ? 'app' : 'master')));
+    const tTarget = d.target || d.n || '';
+
+    if (tType === 'brightness' || d.role === 'lights') {
+      cmd('media', { action: 'setbrightness', value: val });
+    } else if (tType === 'app') {
+      cmd('media', { action: 'setappvol', target: tTarget, value: val });
+    } else if (tType === 'device') {
+      cmd('media', { action: 'setdevvol', target: tTarget, value: val });
+    } else if (tType === 'mic' || d.role === 'mic') {
       cmd('media', { action: 'setmicvol', value: val });
     } else {
       cmd('media', { action: 'setvol', value: val });
@@ -2770,7 +3058,8 @@ function setItemVolume(itemIdx, newVol) {
   const rounded = Math.max(0, Math.min(100, Math.round(newVol)));
   d.v = rounded;
 
-  if (d.role === 'lights') {
+  const tType = d.targetType || (d.role === 'mic' ? 'mic' : (d.role === 'lights' ? 'brightness' : (d.role === 'app' ? 'app' : 'master')));
+  if (tType === 'brightness' || d.role === 'lights') {
     d.m = 0; // Lights cannot be muted
   } else {
     // For audio channels (Headset, Music, Mic, Game, Discord, etc.):
@@ -2797,9 +3086,13 @@ function setItemVolume(itemIdx, newVol) {
 function toggleMuteItem(itemIdx) {
   itemIdx = Math.max(0, Math.min(D.length - 1, itemIdx));
   const d = D[itemIdx];
+  if (!d) return;
+
+  const tType = d.targetType || (d.role === 'mic' ? 'mic' : (d.role === 'lights' ? 'brightness' : (d.role === 'app' ? 'app' : 'master')));
+  const tTarget = d.target || d.n || '';
 
   // Lights cannot be muted! Logically toggle Off/On (0% or previous brightness)
-  if (d.role === 'lights') {
+  if (tType === 'brightness' || d.role === 'lights') {
     d.m = 0;
     if (d.v > 0) {
       d.prevV = d.v;
@@ -2807,6 +3100,7 @@ function toggleMuteItem(itemIdx) {
     } else {
       d.v = d.prevV || 80;
     }
+    cmd('media', { action: 'setbrightness', value: d.v });
     updateStripAndKnobs();
     saveDialsData();
     return;
@@ -2818,9 +3112,15 @@ function toggleMuteItem(itemIdx) {
     d.v = 25;
   }
 
-  if (itemIdx === 0) {
-    on.mic = !!D[0].m;
-    renderKeys();
+  if (tType === 'app') {
+    cmd('media', { action: 'appmute', target: tTarget });
+  } else if (tType === 'device') {
+    cmd('media', { action: 'devmute', target: tTarget });
+  } else if (tType === 'mic' || d.role === 'mic') {
+    if (itemIdx === 0) {
+      on.mic = !!d.m;
+      renderKeys();
+    }
     cmd('media', { action: 'micmute' });
   } else {
     cmd('media', { action: 'mute' });
@@ -2830,7 +3130,37 @@ function toggleMuteItem(itemIdx) {
   saveDialsData();
 }
 
-// Tap strip segment directly to mute or edit
+// Tap strip segment directly to mute or edit (Touch & Mouse Support)
+let stripTapData = null;
+stripEl.addEventListener('pointerdown', e => {
+  const s = e.target.closest('.seg, #add-dial-seg');
+  if (!s) return;
+  stripTapData = { el: s, startX: e.clientX, startY: e.clientY, time: Date.now() };
+});
+
+stripEl.addEventListener('pointerup', e => {
+  if (!stripTapData) return;
+  const t = stripTapData;
+  stripTapData = null;
+  const dx = Math.abs(e.clientX - t.startX);
+  const dy = Math.abs(e.clientY - t.startY);
+  if (dx < 25 && dy < 25) {
+    if (t.el.id === 'add-dial-seg') {
+      addNewDialChannel();
+      return;
+    }
+    const itemIdx = +t.el.dataset.idx;
+    if (!isNaN(itemIdx)) {
+      if (isEditMode) {
+        openDialEdit(itemIdx);
+      } else {
+        toggleMuteItem(itemIdx);
+      }
+      if (navigator.vibrate) navigator.vibrate(8);
+    }
+  }
+});
+
 stripEl.addEventListener('click', e => {
   const addBtn = e.target.closest('#add-dial-seg');
   if (addBtn) {
@@ -2850,7 +3180,7 @@ stripEl.addEventListener('click', e => {
   }
   toggleMuteItem(itemIdx);
   if (navigator.vibrate) navigator.vibrate(8);
-});
+}, true);
 
 // ── 4 Knobs Interaction (True Circular Rotary Tracking, Wheel, Click to Mute) ──
 document.querySelectorAll('.knob').forEach(k => {
@@ -3207,63 +3537,67 @@ const SW = [C.purple, C.pink, C.cyan, C.orange, C.green, DARK];
 const IC = Object.keys(P).filter(n => n !== 'back' && n !== 'pause');
 
 function openEdit(keyId) {
-  if (!keyId || keyId === 'back') return;
-  const d = def(keyId);
-  const defItem = DK[keyId] || d;
+  try {
+    if (!keyId || keyId === 'back') return;
+    const d = def(keyId);
+    const defItem = DK[keyId] || d;
 
-  let initialSteps = [];
-  if (d.s && Array.isArray(d.s) && d.s.length > 0) {
-    initialSteps = d.s.map(x => ({ a: x.a, v: x.v || '' }));
-  } else if (d.action === 'launch') {
-    const p = (d.payload && d.payload.path) || '';
-    if (p.startsWith('http')) {
-      initialSteps = [{ a: 'Web:Open website', v: p }];
-    } else {
-      initialSteps = [{ a: 'Apps:' + (p || 'Calculator'), v: p }];
+    let initialSteps = [];
+    if (d.s && Array.isArray(d.s) && d.s.length > 0) {
+      initialSteps = d.s.map(x => ({ a: x.a, v: x.v || '' }));
+    } else if (d.action === 'launch') {
+      const p = (d.payload && d.payload.path) || '';
+      if (p.startsWith('http')) {
+        initialSteps = [{ a: 'Web:Open website', v: p }];
+      } else {
+        initialSteps = [{ a: 'Apps:' + (p || 'Calculator'), v: p }];
+      }
+    } else if (d.action === 'hotkey') {
+      const m = (d.payload && d.payload.modifiers) || [];
+      const pts = [...m, (d.payload && d.payload.key) || ''].filter(Boolean);
+      initialSteps = [{ a: 'Keyboard and mouse:Press hotkey', v: pts.join('+') }];
+    } else if (d.action === 'media') {
+      const mAction = (d.payload && d.payload.action) || 'playPause';
+      initialSteps = [{ a: 'Media:Play or pause', v: mAction }];
+    } else if (d.action === 'obs') {
+      const req = (d.payload && d.payload.requestType) || 'ToggleStream';
+      initialSteps = [{ a: 'Streaming:OBS: Start streaming', v: req }];
+    } else if (d.action === 'system') {
+      initialSteps = [{ a: 'System:Take screenshot', v: (d.payload && d.payload.action) || '' }];
+    } else if (d.action === 'run') {
+      initialSteps = [{ a: 'Files and scripts:Run command', v: (d.payload && d.payload.command) || '' }];
     }
-  } else if (d.action === 'hotkey') {
-    const m = (d.payload && d.payload.modifiers) || [];
-    const pts = [...m, (d.payload && d.payload.key) || ''].filter(Boolean);
-    initialSteps = [{ a: 'Keyboard and mouse:Press hotkey', v: pts.join('+') }];
-  } else if (d.action === 'media') {
-    const mAction = (d.payload && d.payload.action) || 'playPause';
-    initialSteps = [{ a: 'Media:Play or pause', v: mAction }];
-  } else if (d.action === 'obs') {
-    const req = (d.payload && d.payload.requestType) || 'ToggleStream';
-    initialSteps = [{ a: 'Streaming:OBS: Start streaming', v: req }];
-  } else if (d.action === 'system') {
-    initialSteps = [{ a: 'System:Take screenshot', v: (d.payload && d.payload.action) || '' }];
-  } else if (d.action === 'run') {
-    initialSteps = [{ a: 'Files and scripts:Run command', v: (d.payload && d.payload.command) || '' }];
+
+    let selC = d.c || C.purple;
+    for (const sw of SW) {
+      if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
+    }
+
+    const isEmpty = !!d.empty || d.t === 'empty';
+    ed = {
+      k: { id: keyId },
+      d: defItem,
+      l: isEmpty ? '' : (d.l != null ? d.l : (defItem.l || 'Key')),
+      i: isEmpty ? 'star' : (d.i || defItem.i || 'game'),
+      c: selC,
+      s: initialSteps,
+      empty: isEmpty
+    };
+
+    if ($('icons')) $('icons').innerHTML = IC.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n]}"/></svg></button>`).join('');
+    if ($('sws')) $('sws').innerHTML = SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
+
+    if ($('fl')) $('fl').value = ed.l;
+    if ($('emo')) $('emo').value = P[ed.i] ? '' : ed.i;
+
+    sheet();
+    steps();
+    document.body.classList.add('so');
+    if ($('wrap')) $('wrap').inert = true;
+    setTimeout(() => { if ($('fl')) $('fl').focus({ preventScroll: true }); }, 340);
+  } catch(err) {
+    console.error('Error opening key edit:', err);
   }
-
-  let selC = d.c || C.purple;
-  for (const sw of SW) {
-    if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
-  }
-
-  const isEmpty = !!d.empty || d.t === 'empty';
-  ed = {
-    k: { id: keyId },
-    d: defItem,
-    l: isEmpty ? '' : (d.l != null ? d.l : (defItem.l || 'Key')),
-    i: isEmpty ? 'star' : (d.i || defItem.i || 'game'),
-    c: selC,
-    s: initialSteps,
-    empty: isEmpty
-  };
-
-  $('icons').innerHTML = IC.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n]}"/></svg></button>`).join('');
-  $('sws').innerHTML = SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
-
-  $('fl').value = ed.l;
-  $('emo').value = P[ed.i] ? '' : ed.i;
-
-  sheet();
-  steps();
-  document.body.classList.add('so');
-  if ($('wrap')) $('wrap').inert = true;
-  setTimeout(() => $('fl').focus({ preventScroll: true }), 340);
 }
 
 function sheet() {
@@ -3279,8 +3613,8 @@ function sheet() {
   $('stitle').textContent = ed.empty ? 'Add Action' : 'Customize key';
   $('ssub').textContent = ed.empty ? 'Configure new button' : ('Editing ' + (ed.d.l || ed.k.id));
 
-  document.querySelectorAll('.ic-t').forEach(b => b.setAttribute('aria-pressed', b.dataset.n === ed.i));
-  document.querySelectorAll('.sw-c').forEach((b, i) => b.setAttribute('aria-pressed', SW[i][0] === ed.c[0]));
+  document.querySelectorAll('#icons .ic-t').forEach(b => b.setAttribute('aria-pressed', b.dataset.n === ed.i));
+  document.querySelectorAll('#sws .sw-c').forEach((b, i) => b.setAttribute('aria-pressed', (SW[i] && SW[i][0] === ed.c[0]) ? 'true' : 'false'));
 }
 
 function steps() {
@@ -3477,42 +3811,260 @@ const DIAL_SW = [
 
 const DIAL_ICONS = ['mic', 'head', 'bulb', 'game', 'play', 'chat', 'screen', 'moon', 'star', 'bolt', 'power', 'clock'];
 
-function openDialEdit(idx) {
-  if (idx < 0 || idx >= D.length) return;
-  editingDialIdx = idx;
-  const d = D[idx];
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
-  let selC = d.c || DIAL_SW[0];
-  for (const sw of DIAL_SW) {
-    if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
+let cachedAudioDevices = {
+  outputs: [],
+  inputs: [],
+  sessions: [],
+  brightness: 100
+};
+
+function onAudioDevicesReceived(data) {
+  if (!data) return;
+  cachedAudioDevices = {
+    outputs: Array.isArray(data.outputs) ? data.outputs : [],
+    inputs: Array.isArray(data.inputs) ? data.inputs : [],
+    sessions: Array.isArray(data.sessions) ? data.sessions : [],
+    brightness: typeof data.brightness === 'number' ? data.brightness : 100
+  };
+  if (document.body.classList.contains('dso')) {
+    renderAudioTargetsList();
+  }
+}
+
+async function fetchAudioDevices() {
+  try {
+    const host = getTargetWsHost();
+    const proto = (location.protocol === 'https:') ? 'https:' : 'http:';
+    const res = await fetch(`${proto}//${host}/api/audio-devices`);
+    if (res.ok) {
+      const data = await res.json();
+      onAudioDevicesReceived(data);
+    }
+  } catch (_) {}
+}
+
+let activeDialCat = 'all';
+
+function renderAudioTargetsList(filterCat) {
+  const container = $('dial-targets-list');
+  if (!container) return;
+  if (filterCat) activeDialCat = filterCat;
+
+  document.querySelectorAll('#dial-cat-tabs .dial-cat-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === activeDialCat);
+  });
+
+  const curType = dialEd ? (dialEd.targetType || (dialEd.role === 'mic' ? 'mic' : (dialEd.role === 'lights' ? 'brightness' : (dialEd.role === 'app' ? 'app' : 'master')))) : 'master';
+  const curTarget = dialEd ? (dialEd.target || '') : '';
+
+  let html = '';
+
+  // 1. Output Devices & Speakers
+  if (activeDialCat === 'all' || activeDialCat === 'output') {
+    html += '<div class="dial-group-title"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> Output Devices & Speakers</div>';
+    html += '<div class="dial-targets-grid">';
+    
+    const isMasterSel = (curType === 'master') && (!curTarget);
+    html += `
+      <button type="button" class="dial-card ${isMasterSel ? 'selected' : ''}" data-type="master" data-target="" data-name="Master Audio" data-icon="head" aria-selected="${isMasterSel}">
+        <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+        <div class="dial-card-text">
+          <span class="dial-card-name">Master Audio</span>
+          <span class="dial-card-sub">All PC Audio (Master)</span>
+        </div>
+      </button>
+    `;
+
+    const seenOutputs = new Set();
+    (cachedAudioDevices.outputs || []).forEach(dev => {
+      seenOutputs.add(dev.name.toLowerCase());
+      const isSel = (curType === 'device') && (curTarget.toLowerCase() === dev.name.toLowerCase());
+      const isHeadset = /head(set|phone)|ear/i.test(dev.name);
+      const shortLabel = isHeadset ? 'Headset' : 'Speakers';
+      html += `
+        <button type="button" class="dial-card ${isSel ? 'selected' : ''}" data-type="device" data-target="${escapeHtml(dev.name)}" data-name="${shortLabel}" data-icon="head" data-vol="${dev.volume}" aria-selected="${isSel}">
+          <svg viewBox="0 0 24 24">${isHeadset ? '<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>' : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>'}</svg>
+          <div class="dial-card-text">
+            <span class="dial-card-name">${escapeHtml(dev.name)}</span>
+            <span class="dial-card-sub">Hardware · ${dev.volume}%</span>
+          </div>
+          <span class="badge-live" title="Active"></span>
+        </button>
+      `;
+    });
+
+    if (![...seenOutputs].some(n => n.includes('headset') || n.includes('headphone'))) {
+      const isSel = (curType === 'device') && (curTarget.toLowerCase() === 'headset');
+      html += `
+        <button type="button" class="dial-card ${isSel ? 'selected' : ''}" data-type="device" data-target="Headset" data-name="Headset" data-icon="head" aria-selected="${isSel}">
+          <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          <div class="dial-card-text">
+            <span class="dial-card-name">Headset / Headphones</span>
+            <span class="dial-card-sub">Audio Endpoint</span>
+          </div>
+        </button>
+      `;
+    }
+    html += '</div>';
   }
 
-  dialEd = {
-    n: d.n || 'Channel',
-    i: d.i || 'mic',
-    c: selC,
-    role: d.role || 'master',
-    v: d.v !== undefined ? d.v : 75,
-    m: !!d.m
-  };
+  // 2. Input Devices & Microphones
+  if (activeDialCat === 'all' || activeDialCat === 'input') {
+    html += '<div class="dial-group-title"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg> Input Devices / Microphones</div>';
+    html += '<div class="dial-targets-grid">';
+    
+    const isMicSel = (curType === 'mic') && (!curTarget);
+    html += `
+      <button type="button" class="dial-card ${isMicSel ? 'selected' : ''}" data-type="mic" data-target="" data-name="Microphone" data-icon="mic" aria-selected="${isMicSel}">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <div class="dial-card-text">
+          <span class="dial-card-name">Microphone</span>
+          <span class="dial-card-sub">PC Default Mic</span>
+        </div>
+      </button>
+    `;
 
-  $('dial-fl').value = dialEd.n;
-  $('dial-emo').value = P[dialEd.i] ? '' : dialEd.i;
+    (cachedAudioDevices.inputs || []).forEach(mic => {
+      const isSel = (curType === 'device') && (curTarget.toLowerCase() === mic.name.toLowerCase());
+      html += `
+        <button type="button" class="dial-card ${isSel ? 'selected' : ''}" data-type="device" data-target="${escapeHtml(mic.name)}" data-name="Mic" data-icon="mic" data-vol="${mic.volume}" aria-selected="${isSel}">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <div class="dial-card-text">
+            <span class="dial-card-name">${escapeHtml(mic.name)}</span>
+            <span class="dial-card-sub">Hardware Mic · ${mic.volume}%</span>
+          </div>
+          <span class="badge-live" title="Active"></span>
+        </button>
+      `;
+    });
+    html += '</div>';
+  }
 
-  // Render icons & swatches
-  $('dial-icons').innerHTML = DIAL_ICONS.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n] || P.mic}"/></svg></button>`).join('');
-  $('dial-sws').innerHTML = DIAL_SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
+  // 3. Applications & Channels
+  if (activeDialCat === 'all' || activeDialCat === 'apps') {
+    html += '<div class="dial-group-title"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Applications & Channels</div>';
+    html += '<div class="dial-targets-grid">';
 
-  // Reorder buttons state
-  $('dial-move-left').disabled = (editingDialIdx <= 0);
-  $('dial-move-right').disabled = (editingDialIdx >= D.length - 1);
-  $('dial-del-btn').disabled = (D.length <= 2);
-  $('dial-del-btn').title = D.length <= 2 ? 'At least 2 channels required' : 'Delete this channel';
+    const seenProcs = new Set();
+    (cachedAudioDevices.sessions || []).forEach(sess => {
+      seenProcs.add(sess.process.toLowerCase());
+      const isSel = (curType === 'app') && (curTarget.toLowerCase() === sess.process.toLowerCase());
+      const icon = /discord|chat/i.test(sess.process) ? 'chat' : (/game|valorant|steam/i.test(sess.process) ? 'game' : 'play');
+      html += `
+        <button type="button" class="dial-card ${isSel ? 'selected' : ''}" data-type="app" data-target="${escapeHtml(sess.process)}" data-name="${escapeHtml(sess.name)}" data-icon="${icon}" data-vol="${sess.volume}" aria-selected="${isSel}">
+          <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <div class="dial-card-text">
+            <span class="dial-card-name">${escapeHtml(sess.name)}</span>
+            <span class="dial-card-sub">Running Session · ${sess.volume}%</span>
+          </div>
+          <span class="badge-live" title="Playing Audio"></span>
+        </button>
+      `;
+    });
 
+    const appPresets = [
+      { target: 'browser', name: 'Browser Audio', sub: 'Chrome / Edge / Brave / YouTube', icon: 'screen' },
+      { target: 'game', name: 'Game Audio', sub: 'Active PC Games (Auto-detect)', icon: 'game' },
+      { target: 'discord', name: 'Discord', sub: 'Voice & Calls', icon: 'chat' },
+      { target: 'spotify', name: 'Spotify', sub: 'Music & Media', icon: 'play' }
+    ];
+
+    appPresets.forEach(preset => {
+      if (!seenProcs.has(preset.target)) {
+        const isSel = (curType === 'app') && (
+          curTarget.toLowerCase() === preset.target.toLowerCase() ||
+          (preset.target === 'game' && (/game/i.test(curTarget) || /game/i.test(dialEd.n))) ||
+          (preset.target === 'browser' && (/browser|chrome|edge|brave|firefox/i.test(curTarget) || /browser/i.test(dialEd.n)))
+        );
+        html += `
+          <button type="button" class="dial-card ${isSel ? 'selected' : ''}" data-type="app" data-target="${preset.target}" data-name="${preset.name}" data-icon="${preset.icon}" aria-selected="${isSel}">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <div class="dial-card-text">
+              <span class="dial-card-name">${preset.name}</span>
+              <span class="dial-card-sub">${preset.sub}</span>
+            </div>
+          </button>
+        `;
+      }
+    });
+    html += '</div>';
+  }
+
+  // 4. Lights & Screen
+  if (activeDialCat === 'all' || activeDialCat === 'lights') {
+    html += '<div class="dial-group-title"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Lights & Display</div>';
+    html += '<div class="dial-targets-grid">';
+    const isLightsSel = (curType === 'brightness' || (dialEd && dialEd.role === 'lights'));
+    html += `
+      <button type="button" class="dial-card ${isLightsSel ? 'selected' : ''}" data-type="brightness" data-target="" data-name="Smart Lights" data-icon="bulb" aria-selected="${isLightsSel}">
+        <svg viewBox="0 0 24 24"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+        <div class="dial-card-text">
+          <span class="dial-card-name">Display Brightness</span>
+          <span class="dial-card-sub">Screen Brightness & Smart Lights · ${cachedAudioDevices.brightness || 100}%</span>
+        </div>
+      </button>
+    `;
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
   updateDialSheetPreview();
-  document.body.classList.add('dso');
-  if ($('wrap')) $('wrap').inert = true;
-  setTimeout(() => $('dial-fl').focus({ preventScroll: true }), 340);
+}
+
+function openDialEdit(idx) {
+  try {
+    if (idx < 0 || idx >= D.length) return;
+    editingDialIdx = idx;
+    const d = D[idx];
+
+    let selC = d.c || DIAL_SW[0];
+    for (const sw of DIAL_SW) {
+      if (d.c && d.c[0] === sw[0]) { selC = sw; break; }
+    }
+
+    dialEd = {
+      n: d.n || 'Channel',
+      i: d.i || 'mic',
+      c: selC,
+      role: d.role || 'master',
+      targetType: d.targetType || (d.role === 'mic' ? 'mic' : (d.role === 'lights' ? 'brightness' : (d.role === 'app' ? 'app' : 'master'))),
+      target: d.target || '',
+      v: d.v !== undefined ? d.v : 75,
+      m: !!d.m
+    };
+
+    if ($('dial-fl')) $('dial-fl').value = dialEd.n;
+    if ($('dial-emo')) $('dial-emo').value = P[dialEd.i] ? '' : dialEd.i;
+    if ($('dial-custom-target')) $('dial-custom-target').value = (dialEd.targetType === 'app' || dialEd.targetType === 'device') ? (dialEd.target || '') : '';
+
+    // Render icons & swatches
+    if ($('dial-icons')) $('dial-icons').innerHTML = DIAL_ICONS.map(n => `<button class="ic-t" data-n="${n}" aria-label="${n}"><svg viewBox="0 0 24 24"><path d="${P[n] || P.mic}"/></svg></button>`).join('');
+    if ($('dial-sws')) $('dial-sws').innerHTML = DIAL_SW.map((c, i) => `<button class="sw-c" data-i="${i}" style="--a:${c[0]};--b:${c[1]}" aria-label="Color ${i + 1}"></button>`).join('');
+
+    // Reorder buttons state
+    if ($('dial-move-left')) $('dial-move-left').disabled = (editingDialIdx <= 0);
+    if ($('dial-move-right')) $('dial-move-right').disabled = (editingDialIdx >= D.length - 1);
+    if ($('dial-del-btn')) {
+      $('dial-del-btn').disabled = (D.length <= 2);
+      $('dial-del-btn').title = D.length <= 2 ? 'At least 2 channels required' : 'Delete this channel';
+    }
+
+    activeDialCat = 'all';
+    renderAudioTargetsList('all');
+    fetchAudioDevices();
+    updateDialSheetPreview();
+
+    document.body.classList.add('dso');
+    if ($('wrap')) $('wrap').inert = true;
+    setTimeout(() => { if ($('dial-fl')) $('dial-fl').focus({ preventScroll: true }); }, 340);
+  } catch(err) {
+    console.error('Error opening dial edit:', err);
+  }
 }
 
 function updateDialSheetPreview() {
@@ -3526,12 +4078,19 @@ function updateDialSheetPreview() {
   $('dpv-name').textContent = dialEd.n || 'Channel';
   $('dpv-ic').innerHTML = ic(dialEd.i);
   $('dpv-meter').style.width = dialEd.v + '%';
-  $('dpv-val').textContent = dialEd.role === 'lights' ? (dialEd.v === 0 ? 'Off' : dialEd.v + '%') : (dialEd.m ? 'Muted' : dialEd.v + '%');
+  $('dpv-val').textContent = (dialEd.targetType === 'brightness' || dialEd.role === 'lights') ? (dialEd.v === 0 ? 'Off' : dialEd.v + '%') : (dialEd.m ? 'Muted' : dialEd.v + '%');
   $('dial-sub').textContent = 'Editing ' + (D[editingDialIdx] ? D[editingDialIdx].n : 'Channel');
 
-  // Active role pill
-  document.querySelectorAll('#dial-roles .drole-btn').forEach(b => {
-    b.setAttribute('aria-pressed', b.dataset.role === dialEd.role);
+  // Highlight selected target card in dial-targets-list
+  document.querySelectorAll('#dial-targets-list .dial-card').forEach(card => {
+    const cType = card.dataset.type;
+    const cTarget = card.dataset.target || '';
+    const isSelected = (cType === dialEd.targetType) && (
+      (cTarget === '' && (!dialEd.target || dialEd.target === '')) ||
+      (cTarget !== '' && dialEd.target && cTarget.toLowerCase() === dialEd.target.toLowerCase())
+    );
+    card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    card.classList.toggle('selected', isSelected);
   });
 
   // Active icon & color
@@ -3559,7 +4118,9 @@ function addNewDialChannel() {
     v: 75,
     m: 0,
     c: color,
-    role: 'master'
+    role: 'master',
+    targetType: 'master',
+    target: ''
   });
   saveDialsData();
   renderStrip();
@@ -3606,15 +4167,79 @@ $('dial-sws').onclick = e => {
   }
 };
 
-$('dial-roles').onclick = e => {
-  const b = e.target.closest('.drole-btn');
-  if (b && dialEd) {
-    dialEd.role = b.dataset.role;
-    if (dialEd.role === 'lights') {
-      dialEd.m = 0;
-    }
-    updateDialSheetPreview();
+function selectDialTarget(card) {
+  if (!card || !dialEd) return;
+  const type = card.dataset.type;
+  const target = card.dataset.target || '';
+  const defName = card.dataset.name || 'Channel';
+  const icon = card.dataset.icon || 'mic';
+  const vol = card.dataset.vol ? parseInt(card.dataset.vol, 10) : null;
+
+  // Immediate visual selection state across all rendered cards
+  document.querySelectorAll('#dial-targets-list .dial-card').forEach(c => {
+    const isThis = (c === card);
+    c.classList.toggle('selected', isThis);
+    c.setAttribute('aria-selected', isThis ? 'true' : 'false');
+  });
+
+  dialEd.targetType = type;
+  dialEd.target = target;
+  dialEd.role = (type === 'mic') ? 'mic' : (type === 'brightness' ? 'lights' : (type === 'app' ? 'app' : 'master'));
+  dialEd.n = defName;
+  if ($('dial-fl')) $('dial-fl').value = defName;
+  dialEd.i = icon;
+  if ($('dial-emo')) $('dial-emo').value = '';
+  if (vol != null && !isNaN(vol)) {
+    dialEd.v = vol;
   }
+  if ($('dial-custom-target')) {
+    $('dial-custom-target').value = (type === 'app' || type === 'device') ? target : '';
+  }
+
+  updateDialSheetPreview();
+}
+
+if ($('dial-cat-tabs')) {
+  $('dial-cat-tabs').onclick = e => {
+    const tab = e.target.closest('.dial-cat-tab');
+    if (!tab) return;
+    renderAudioTargetsList(tab.dataset.cat || 'all');
+  };
+}
+
+// Target Selection Click
+if ($('dial-targets-list')) {
+  $('dial-targets-list').onclick = e => {
+    const card = e.target.closest('.dial-card');
+    if (!card) return;
+    selectDialTarget(card);
+  };
+}
+
+$('dial-custom-target').oninput = e => {
+  if (!dialEd) return;
+  const v = e.target.value.trim();
+  dialEd.target = v;
+  if (v) {
+    dialEd.targetType = 'app';
+    dialEd.role = 'app';
+  } else {
+    dialEd.targetType = 'master';
+    dialEd.role = 'master';
+  }
+  renderAudioTargetsList();
+  updateDialSheetPreview();
+};
+
+$('dial-rescan-btn').onclick = async () => {
+  $('dial-rescan-btn').textContent = '⏳ Detecting...';
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'get-audio-devices' }));
+  }
+  await fetchAudioDevices();
+  renderAudioTargetsList();
+  $('dial-rescan-btn').textContent = '🔄 Detect Devices';
+  toast('Detected connected devices');
 };
 
 $('dial-move-left').onclick = () => {
@@ -3664,7 +4289,9 @@ $('dial-save').onclick = () => {
   d.i = dialEd.i || d.i || 'mic';
   d.c = dialEd.c || d.c || DIAL_SW[0];
   d.role = dialEd.role || d.role || 'master';
-  if (d.role === 'lights') d.m = 0;
+  d.targetType = dialEd.targetType || 'master';
+  d.target = dialEd.target || '';
+  if (d.role === 'lights' || d.targetType === 'brightness') d.m = 0;
 
   saveDialsData();
   closeDialSheet();
@@ -3958,17 +4585,6 @@ function applyDeckSizing(size, shape, disp) {
   localStorage.setItem('dp_card_shape', cardShapeMode);
   localStorage.setItem('dp_disp_mode', dispMode);
 
-  const hintEl = $('bottom-hint');
-  if (hintEl) {
-    if (dispMode === 'hidden') {
-      hintEl.textContent = 'Swipe keys horizontally to navigate pages';
-    } else if (dispMode === '2') {
-      hintEl.textContent = 'Swipe keys horizontally · Scroll display bar · 2 knobs match visible items';
-    } else {
-      hintEl.textContent = 'Swipe keys horizontally · Scroll display bar · 4 knobs match visible items';
-    }
-  }
-
   updateSegmentWidths();
   updateStripAndKnobs();
 }
@@ -4219,16 +4835,26 @@ $('edt').addEventListener('click', () => {
   toast(isEditMode ? 'Tap any key or dial to customize it' : 'Edit mode closed');
 });
 
+function applyTheme(theme) {
+  const isLight = theme === 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  const color = isLight ? '#d5dcf0' : '#070a15';
+  document.documentElement.style.backgroundColor = color;
+  if (document.body) document.body.style.backgroundColor = color;
+  const metas = document.querySelectorAll('meta[name="theme-color"]');
+  metas.forEach(m => m.setAttribute('content', color));
+}
+
 // Theme button
 $('thm').addEventListener('click', () => {
-  const cur = document.documentElement.getAttribute('data-theme');
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
   const next = cur === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
+  applyTheme(next);
   localStorage.setItem('dp_theme', next);
   toast('Theme: ' + next.toUpperCase());
 });
-const svdTheme = localStorage.getItem('dp_theme');
-if (svdTheme) document.documentElement.setAttribute('data-theme', svdTheme);
+const svdTheme = localStorage.getItem('dp_theme') || 'light';
+applyTheme(svdTheme);
 
 /* ── Init ── */
 applyDeckSizing(deckSizeMode, cardShapeMode, dispMode);
@@ -4257,6 +4883,145 @@ setTimeout(() => {
     }
   } catch (_) {}
 }, 60);
+/* ── Pull to Refresh Implementation ── */
+(function setupPullToRefresh() {
+  const ptr = $('ptr-indicator');
+  const ptrIcon = $('ptr-icon');
+  const ptrText = $('ptr-text');
+  if (!ptr || !ptrIcon || !ptrText) return;
+
+  let startX = 0;
+  let startY = 0;
+  let currentY = 0;
+  let canPull = false;
+  let isPulling = false;
+  let isRefreshing = false;
+  let hasVibrated = false;
+  const PULL_THRESHOLD = 85;
+
+  function getScrollTop() {
+    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  }
+
+  function isInteractiveTarget(target) {
+    if (!target) return false;
+    return !!target.closest(
+      '.key, .knob, .knob-wrap, .cell, .strip-scroll, .strip, .slider-fill-wrap, .slider-thumb, .sheet, .pk, button, input, select, textarea, .edit, .theme-tog, .grid-btn'
+    );
+  }
+
+  function onTouchStart(e) {
+    if (isRefreshing) return;
+    canPull = false;
+    isPulling = false;
+    hasVibrated = false;
+
+    // Pull to refresh ONLY initiates when scrolled to the very top (scrollTop <= 2)
+    if (getScrollTop() > 2) return;
+
+    // Never intercept touches on keys, dials, sliders, or buttons
+    if (isInteractiveTarget(e.target)) return;
+
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    currentY = startY;
+    canPull = true;
+  }
+
+  function onTouchMove(e) {
+    if (isRefreshing || !canPull || !startY) return;
+
+    // If page has scrolled down even slightly, cancel pull-to-refresh so user scrolls normally
+    if (getScrollTop() > 2) {
+      cancelPull();
+      return;
+    }
+
+    const touch = e.touches ? e.touches[0] : e;
+    currentY = touch.clientY;
+    const deltaX = Math.abs(touch.clientX - startX);
+    const deltaY = currentY - startY;
+
+    // If swiping horizontally, cancel PTR immediately
+    if (deltaX > Math.abs(deltaY)) {
+      cancelPull();
+      return;
+    }
+
+    // Only engage pulling if dragging downward past deadzone
+    if (deltaY > 20) {
+      isPulling = true;
+      const pullDist = Math.min(105, Math.pow(deltaY, 0.82) * 1.6);
+      const progress = Math.min(1, pullDist / PULL_THRESHOLD);
+
+      ptr.style.transition = 'none';
+      ptr.style.opacity = Math.min(1, progress * 1.3);
+      ptr.style.transform = `translate(-50%, ${pullDist - 65}px)`;
+      ptrIcon.style.transform = `rotate(${progress * 270}deg)`;
+
+      if (pullDist >= PULL_THRESHOLD) {
+        ptrText.textContent = 'Release to refresh';
+        if (!hasVibrated) {
+          hasVibrated = true;
+          if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
+        }
+      } else {
+        ptrText.textContent = 'Pull down to refresh';
+        hasVibrated = false;
+      }
+
+      // Only prevent default bounce when user has pulled significantly past 40px
+      if (e.cancelable && deltaY > 40) {
+        e.preventDefault();
+      }
+    } else if (isPulling) {
+      cancelPull();
+    }
+  }
+
+  function cancelPull() {
+    canPull = false;
+    isPulling = false;
+    startY = 0;
+    currentY = 0;
+    hasVibrated = false;
+    ptr.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease';
+    ptr.style.transform = 'translate(-50%, -90px)';
+    ptr.style.opacity = '0';
+  }
+
+  function onTouchEnd() {
+    if (!isPulling || isRefreshing) {
+      cancelPull();
+      return;
+    }
+
+    const deltaY = currentY - startY;
+    const pullDist = Math.min(105, Math.pow(deltaY, 0.82) * 1.6);
+
+    if (pullDist >= PULL_THRESHOLD) {
+      isRefreshing = true;
+      ptr.classList.add('refreshing');
+      ptr.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease';
+      ptr.style.transform = 'translate(-50%, 15px)';
+      ptr.style.opacity = '1';
+      ptrText.textContent = 'Refreshing Deck...';
+      if (navigator.vibrate) try { navigator.vibrate(35); } catch (_) {}
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 350);
+    } else {
+      cancelPull();
+    }
+  }
+
+  window.addEventListener('touchstart', onTouchStart, { passive: true });
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+  window.addEventListener('touchend', onTouchEnd, { passive: true });
+  window.addEventListener('touchcancel', cancelPull, { passive: true });
+})();
 </script>
 </body>
 </html>

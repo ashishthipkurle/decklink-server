@@ -3,6 +3,8 @@ process.env.WS_NO_UTF_8_VALIDATE = 'true';
 
 import { app, ipcMain } from 'electron';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { spawn } from 'child_process';
 
 // Squirrel Windows installer event handling (inlined to avoid runtime missing-module in app.asar)
@@ -45,6 +47,8 @@ import * as mdns from './main/mdns.js';
 import * as usbBridge from './main/usb-bridge.js';
 import * as storeModule from './main/store.js';
 import * as commandRouter from './main/command-router.js';
+import * as udpDiscovery from './main/udp-discovery.js';
+import * as autostart from './main/autostart.js';
 import qrcode from 'qrcode';
 
 let adbWatcher = null;
@@ -57,6 +61,7 @@ app.whenReady().then(() => {
   tray.setupTray();
   wsServer.startWebSocketServer(port);
   mdns.startMDNSBroadcast(port);
+  udpDiscovery.startUdpDiscovery(port);
 
   // Auto-setup ADB reverse for USB connections
   adbWatcher = usbBridge.startAdbReverseWatcher(port);
@@ -69,8 +74,11 @@ app.whenReady().then(() => {
     }
   });
 
-  // Open the dashboard window so user immediately sees connection info
-  tray.createSettingsWindow();
+  // Open the dashboard window only if not started automatically on Windows boot
+  const isAutoStart = process.argv.includes('--autostart') || app.getLoginItemSettings().wasOpenedAsHidden;
+  if (!isAutoStart) {
+    tray.createSettingsWindow();
+  }
 
   console.log('[DeckLink Server] Ready. USB + WiFi modes active.');
 });
@@ -90,7 +98,7 @@ ipcMain.handle('get-server-info', async () => {
     console.error('QR code generation error:', err.message);
   }
 
-  const autoStart = app.getLoginItemSettings().openAtLogin;
+  let autoStart = autostart.isAutoStartEnabled();
 
   const adapters = rawIps.map(net => {
     const isVirt = /vmware|virtualbox|vbox|wsl|hyper-v|vethernet|tailscale|zerotier|loopback/i.test(net.interface);
@@ -109,6 +117,15 @@ ipcMain.handle('get-server-info', async () => {
     if (!a.virt && b.virt) return -1;
     if (a.virt && !b.virt) return 1;
     return 0;
+  });
+
+  // Add Hostname (.local) adapter so user can connect even when Hotspot IP changes dynamically!
+  const hostnameLocal = `${os.hostname().toLowerCase()}.local`;
+  adapters.unshift({
+    n: 'PC Hostname (Hotspot Safe)',
+    ip: hostnameLocal,
+    rec: 1,
+    virt: 0
   });
 
   if (adapters.length === 0) {
@@ -134,15 +151,11 @@ ipcMain.handle('get-server-info', async () => {
 });
 
 ipcMain.handle('get-auto-start', async () => {
-  return app.getLoginItemSettings().openAtLogin;
+  return autostart.isAutoStartEnabled();
 });
 
 ipcMain.handle('set-auto-start', async (_event, enabled) => {
-  app.setLoginItemSettings({
-    openAtLogin: !!enabled,
-    openAsHidden: true
-  });
-  return app.getLoginItemSettings().openAtLogin;
+  return await autostart.setAutoStart(enabled);
 });
 
 ipcMain.handle('open-deck-browser', async (_event, customUrl) => {
@@ -168,6 +181,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   wsServer.stopWebSocketServer();
   mdns.stopMDNSBroadcast();
+  udpDiscovery.stopUdpDiscovery();
   usbBridge.stopAdbReverse(8765);
   if (adbWatcher) clearInterval(adbWatcher);
 });

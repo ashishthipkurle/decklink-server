@@ -73,22 +73,99 @@ const nutModMap = {
   'meta': Key.LeftWin
 };
 
+// Query Connected Audio Devices & Active Audio Sessions
+function queryAudioDevices() {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(nativeExe)) {
+      return resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+    }
+    execFile(nativeExe, ['list-audio'], { windowsHide: true }, (err, stdout) => {
+      if (err || !stdout) {
+        return resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+      }
+      try {
+        const line = stdout.trim().split('\n').find(l => l.trim().startsWith('{'));
+        if (line) {
+          return resolve(JSON.parse(line.trim()));
+        }
+      } catch (_) {}
+      resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+    });
+  });
+}
+
 // Media Executor
 async function executeMedia(payload) {
-  const { action, value } = payload;
+  const { action, value, target, targetType } = payload;
   const a = (action || '').toLowerCase();
+  const val = typeof value === 'number' ? Math.round(value) : 50;
+
+  // 1. App-specific volume (Discord, Spotify, Chrome, Game Audio, etc.)
+  if (a === 'setappvol' || (a === 'setvol' && targetType === 'app')) {
+    const proc = (target || payload.process || 'game').trim();
+    sendNativeArgs(['setappvol', proc, String(val)]);
+    console.log(`  -> [App Volume]: "${proc}" -> ${val}%`);
+    return { status: 'ok' };
+  }
+
+  // 2. App-specific mute
+  if (a === 'appmute' || (a === 'mute' && targetType === 'app')) {
+    const proc = (target || payload.process || 'game').trim();
+    sendNativeArgs(['appmute', proc]);
+    console.log(`  -> [App Mute]: "${proc}"`);
+    return { status: 'ok' };
+  }
+
+  // 3. Device-specific volume (Speakers, Headset, Headphones)
+  if (a === 'setdevvol' || (a === 'setvol' && targetType === 'device')) {
+    const dev = (target || payload.device || 'Speakers').trim();
+    sendNativeArgs(['setdevvol', dev, String(val)]);
+    console.log(`  -> [Device Volume]: "${dev}" -> ${val}%`);
+    return { status: 'ok' };
+  }
+
+  // 4. Device-specific mute
+  if (a === 'devmute' || (a === 'mute' && targetType === 'device')) {
+    const dev = (target || payload.device || 'Speakers').trim();
+    sendNativeArgs(['devmute', dev]);
+    console.log(`  -> [Device Mute]: "${dev}"`);
+    return { status: 'ok' };
+  }
+
+  // 5. Display Brightness ("Smart Lights")
+  if (a === 'setbrightness' || (a === 'setvol' && (targetType === 'brightness' || targetType === 'lights'))) {
+    sendNativeCommand(`setbrightness ${val}`);
+    console.log(`  -> [Brightness]: ${val}%`);
+    return { status: 'ok' };
+  }
+
+  // 6. Microphone volume & mute
+  if (a === 'setmicvol' || (a === 'setvol' && targetType === 'mic')) {
+    sendNativeCommand(`setmicvol ${val}`);
+    console.log(`  -> [Mic Volume]: ${val}%`);
+    return { status: 'ok' };
+  }
+  if (a === 'micmute') {
+    sendNativeCommand(`media micmute`);
+    console.log('  -> [Mic Mute]');
+    return { status: 'ok' };
+  }
+
+  // 7. Master volume & mute
   if (a === 'setvol' && typeof value === 'number') {
-    sendNativeCommand(`setvol ${Math.round(value)}`);
-    console.log(`  -> [Volume Set]: ${Math.round(value)}%`);
-    return;
+    sendNativeCommand(`setvol ${val}`);
+    console.log(`  -> [Master Volume]: ${val}%`);
+    return { status: 'ok' };
   }
-  if (a === 'setmicvol' && typeof value === 'number') {
-    sendNativeCommand(`setmicvol ${Math.round(value)}`);
-    console.log(`  -> [Mic Volume Set]: ${Math.round(value)}%`);
-    return;
+  if (a === 'mute') {
+    sendNativeCommand(`media mute`);
+    console.log('  -> [Master Mute]');
+    return { status: 'ok' };
   }
+
   sendNativeCommand(`media ${a}`);
   console.log('  -> [Media]: ' + a);
+  return { status: 'ok' };
 }
 
 // Hotkey Executor
@@ -217,7 +294,7 @@ function executeSystem(payload) {
     console.log('  -> [System]: Toggle Desktop');
     return;
   }
-  if (action === 'snip') {
+  if (action === 'snip' || action === 'screenshot' || action === 'snap') {
     sendNativeCommand('snip');
     console.log('  -> [System]: Snip Tool');
     return;
@@ -285,6 +362,20 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  if (parsed.pathname === '/api/audio-devices') {
+    queryAudioDevices().then((devices) => {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify(devices));
+    }).catch((e) => {
+      res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ error: e.message, outputs: [], inputs: [], sessions: [], brightness: 100 }));
+    });
+    return;
+  }
+
   if (parsed.pathname === '/api/info') {
     const localIps = getLocalIPs();
     const primaryIp = localIps.length > 0 ? localIps[0].address : 'localhost';
@@ -330,7 +421,9 @@ const server = http.createServer((req, res) => {
       const content = fs.readFileSync(htmlPath, 'utf-8');
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
       res.end(content);
       return;
@@ -378,6 +471,16 @@ wss.on('connection', (ws, req) => {
 
       if (data.type === 'ping' || data.type === 'handshake') {
         ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        return;
+      }
+
+      if (data.type === 'get-audio-devices') {
+        const audioData = await queryAudioDevices();
+        ws.send(JSON.stringify({
+          id: data.id,
+          type: 'audio-devices',
+          data: audioData
+        }));
         return;
       }
 

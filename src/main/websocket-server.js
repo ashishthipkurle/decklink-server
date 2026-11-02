@@ -10,6 +10,7 @@ import qrcode from 'qrcode';
 import * as auth from './auth.js';
 import * as storeModule from './store.js';
 import * as commandRouter from './command-router.js';
+import { queryAudioDevices } from './native-engine.js';
 
 let httpServer = null;
 let wss = null;
@@ -80,6 +81,8 @@ function startWebSocketServer(customPort) {
       const localIps = getLocalIPs();
       const primaryIp = localIps.length > 0 ? localIps[0].address : 'localhost';
       const deckUrl = `http://${primaryIp}:${port}`;
+      const hostname = `${os.hostname().toLowerCase()}.local`;
+      const hostnameUrl = `http://${hostname}:${port}`;
 
       qrcode.toDataURL(deckUrl, { width: 260, margin: 1 }, (err, qrDataUrl) => {
         res.writeHead(200, {
@@ -91,8 +94,24 @@ function startWebSocketServer(customPort) {
           port,
           token: storeModule.USB_AUTO_TOKEN,
           deckUrl,
+          hostname,
+          hostnameUrl,
           qrDataUrl: qrDataUrl || ''
         }));
+      });
+      return;
+    }
+
+    if (reqUrl.startsWith('/api/audio-devices')) {
+      queryAudioDevices().then((devices) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify(devices));
+      }).catch((e) => {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: e.message, outputs: [], inputs: [], sessions: [], brightness: 100 }));
       });
       return;
     }
@@ -207,6 +226,17 @@ function startWebSocketServer(customPort) {
           ws.send(JSON.stringify({
             type: 'pong',
             timestamp: Date.now()
+          }));
+          return;
+        }
+
+        // Query Connected Audio Devices & Active Audio Sessions
+        if (data.type === 'get-audio-devices') {
+          const audioData = await queryAudioDevices();
+          ws.send(JSON.stringify({
+            id: data.id,
+            type: 'audio-devices',
+            data: audioData
           }));
           return;
         }

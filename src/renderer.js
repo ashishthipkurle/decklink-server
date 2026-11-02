@@ -127,7 +127,7 @@ function nets() {
     `<div class="net${i === sel ? ' on' : ''}" data-i="${i}" role="button" tabindex="0" aria-pressed="${i === sel}">
       <div class="nt">
         <span>${esc(a.n)}</span>
-        ${a.rec ? '<em class="tag g">Recommended</em>' : a.virt ? '<em class="tag">Virtual</em>' : ''}
+        ${a.ip.includes('.local') ? '<em class="tag g">Hotspot Safe</em>' : a.rec ? '<em class="tag g">Recommended</em>' : a.virt ? '<em class="tag">Virtual</em>' : ''}
       </div>
       <div class="nip">${esc(a.ip)}</div>
       <button class="btn ghost sm" data-copy="${esc(a.ip)}">Copy</button>
@@ -244,10 +244,14 @@ $('open').onclick = () => {
   if (API.openDeck) API.openDeck(url());
   log('Opening deck in PC browser', 'okc');
 };
-$('auto').checked = !!S.autoStart;
-$('auto').onchange = e => {
-  if (API.setAutoStart) API.setAutoStart(e.target.checked);
-  log('Start with Windows: ' + (e.target.checked ? 'on' : 'off'), 'sys');
+$('auto').checked = Boolean(S.autoStart);
+$('auto').onchange = async e => {
+  const isChecked = e.target.checked;
+  S.autoStart = isChecked;
+  if (API.setAutoStart) {
+    await API.setAutoStart(isChecked);
+  }
+  log('Start with Windows: ' + (isChecked ? 'on' : 'off'), 'sys');
 };
 $('clr').onclick = () => {
   $('term').innerHTML = '';

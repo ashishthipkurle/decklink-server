@@ -18,33 +18,70 @@ function resolveNativeExe() {
   return path.join(process.resourcesPath || '', 'DeckLinkNative.exe');
 }
 
-const nativeExe = resolveNativeExe();
 let nativeProc = null;
+let cachedExe = null;
+
+function getNativeExe() {
+  if (cachedExe && fs.existsSync(cachedExe)) return cachedExe;
+  cachedExe = resolveNativeExe();
+  return cachedExe;
+}
 
 function getNativeProcess() {
   if (nativeProc && !nativeProc.killed) return nativeProc;
+  const exe = getNativeExe();
+  if (!fs.existsSync(exe)) return null;
+
   try {
-    nativeProc = spawn(nativeExe, [], {
+    nativeProc = spawn(exe, [], {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true
     });
     nativeProc.on('error', (err) => {
-      console.error('[Native Engine Error]:', err.message);
+      console.warn('[Native Engine Error]:', err.message);
       nativeProc = null;
     });
     nativeProc.on('exit', () => { nativeProc = null; });
-    console.log('[Native Engine] Persistent Input Daemon Active');
   } catch (err) {
-    console.error('[Native Engine Spawn Error]:', err.message);
+    console.warn('[Native Engine Spawn Error]:', err.message);
+    nativeProc = null;
   }
   return nativeProc;
 }
 
 export function sendNativeCommand(cmdStr) {
-  const proc = getNativeProcess();
-  if (proc && proc.stdin && proc.stdin.writable) {
-    proc.stdin.write(cmdStr.trim() + '\n');
-  } else {
-    execFile(nativeExe, cmdStr.trim().split(' '), () => {});
+  try {
+    const proc = getNativeProcess();
+    if (proc && proc.stdin && proc.stdin.writable) {
+      proc.stdin.write(cmdStr.trim() + '\n');
+      return;
+    }
+    const exe = getNativeExe();
+    if (fs.existsSync(exe)) {
+      execFile(exe, cmdStr.trim().split(' '), { windowsHide: true }, () => {});
+    }
+  } catch (e) {
+    console.warn('[Native Command Error]:', e.message);
   }
+}
+
+export function queryAudioDevices() {
+  return new Promise((resolve) => {
+    const exe = getNativeExe();
+    if (!fs.existsSync(exe)) {
+      return resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+    }
+    execFile(exe, ['list-audio'], { windowsHide: true }, (err, stdout) => {
+      if (err || !stdout) {
+        return resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+      }
+      try {
+        const line = stdout.trim().split('\n').find(l => l.trim().startsWith('{'));
+        if (line) {
+          return resolve(JSON.parse(line.trim()));
+        }
+      } catch (_) {}
+      resolve({ outputs: [], inputs: [], sessions: [], brightness: 100 });
+    });
+  });
 }
