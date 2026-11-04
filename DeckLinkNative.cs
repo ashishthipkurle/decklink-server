@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 public class DeckLinkNative {
     [DllImport("user32.dll")]
@@ -23,6 +24,17 @@ public class DeckLinkNative {
 
     [DllImport("user32.dll")]
     public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+    public static extern IntPtr ShellExecute(IntPtr hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd);
+
+    public static bool TryShellExecute(string file, string args = null, string dir = null) {
+        try {
+            IntPtr res = ShellExecute(IntPtr.Zero, "open", file, args, dir, 1);
+            if ((long)res > 32) return true;
+        } catch {}
+        return false;
+    }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct RAMP {
@@ -923,57 +935,176 @@ public class DeckLinkNative {
         } catch {}
     }
 
-    // ─── Launch Target (Apps, URLs) ───
+    // ─── Launch Target (Apps, URLs, Shortcuts, Protocols) ───
     public static void OpenTarget(string target) {
-        string t = target.Trim();
+        if (string.IsNullOrEmpty(target)) return;
+        string t = target.Trim().Trim('\"', '\'');
+        if (string.IsNullOrEmpty(t)) return;
 
-        if (t.Equals("notepad.exe", StringComparison.OrdinalIgnoreCase) ||
-            t.Equals("notepad", StringComparison.OrdinalIgnoreCase)) {
-            try {
-                Process.Start(new ProcessStartInfo("notepad.exe") { UseShellExecute = true });
+        // 1. Direct file or directory path
+        try {
+            if (File.Exists(t) || Directory.Exists(t)) {
+                string workDir = File.Exists(t) ? (Path.GetDirectoryName(t) ?? "") : t;
+                if (TryShellExecute(t, null, workDir)) return;
+                Process.Start(new ProcessStartInfo(t) {
+                    UseShellExecute = true,
+                    WorkingDirectory = workDir
+                });
                 return;
-            } catch {
+            }
+        } catch {}
+
+        // 2. Web URLs
+        if (t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+            if (TryShellExecute(t)) return;
+            string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+            string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+            if (File.Exists(chromePath) && TryShellExecute(chromePath, "\"" + t + "\"")) return;
+            if (File.Exists(edgePath) && TryShellExecute(edgePath, "\"" + t + "\"")) return;
+            return;
+        }
+
+        // 3. Known URI Protocols (discord://, spotify:, steam://, ms-settings:, com.epicgames.launcher://, etc.)
+        if (t.Contains("://") || t.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("spotify:", StringComparison.OrdinalIgnoreCase)) {
+            if (TryShellExecute(t)) return;
+            try { Process.Start(new ProcessStartInfo(t) { UseShellExecute = true }); return; } catch {}
+        }
+
+        string lower = t.ToLowerInvariant();
+
+        // 4. App Aliases & Protocol / Exe Shortcuts
+        if (lower == "discord" || lower == "discord.exe") {
+            if (TryShellExecute("discord://")) return;
+        }
+        if (lower == "spotify" || lower == "spotify.exe") {
+            if (TryShellExecute("spotify:")) return;
+        }
+        if (lower == "steam" || lower == "steam.exe") {
+            if (TryShellExecute("steam://open/main")) return;
+        }
+        if (lower == "settings" || lower == "ms-settings" || lower == "ms-settings:") {
+            if (TryShellExecute("ms-settings:")) return;
+        }
+        if (lower == "notepad" || lower == "notepad.exe") {
+            if (TryShellExecute("notepad.exe")) return;
+        }
+        if (lower == "calculator" || lower == "calc" || lower == "calc.exe") {
+            if (TryShellExecute("calc.exe")) return;
+        }
+        if (lower == "obs" || lower == "obs64" || lower == "obs64.exe" || lower == "obs studio") {
+            string obsExe = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe";
+            if (File.Exists(obsExe)) {
+                if (TryShellExecute(obsExe, null, Path.GetDirectoryName(obsExe))) return;
+            }
+        }
+        if (lower == "brave" || lower == "brave.exe") {
+            string braveExe = @"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe";
+            if (File.Exists(braveExe)) {
+                if (TryShellExecute(braveExe)) return;
+            }
+        }
+        if (lower == "chrome" || lower == "chrome.exe") {
+            string chromeExe = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+            if (File.Exists(chromeExe)) {
+                if (TryShellExecute(chromeExe)) return;
+            }
+        }
+
+        // 5. Search in Start Menu & Desktop Shortcuts (.lnk)
+        try {
+            string cleanName = lower;
+            if (cleanName.EndsWith(".exe")) cleanName = cleanName.Substring(0, cleanName.Length - 4);
+
+            string[] searchDirs = new string[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs")
+            };
+
+            // Pass A: Exact shortcut match
+            foreach (var dir in searchDirs) {
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
                 try {
-                    Process.Start(new ProcessStartInfo("cmd.exe", "/c start notepad") { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
+                    var lnks = Directory.GetFiles(dir, "*.lnk", SearchOption.AllDirectories);
+                    foreach (var lnk in lnks) {
+                        string fn = Path.GetFileNameWithoutExtension(lnk).ToLowerInvariant();
+                        if (fn == cleanName) {
+                            if (TryShellExecute(lnk, null, Path.GetDirectoryName(lnk))) return;
+                            try { Process.Start(new ProcessStartInfo(lnk) { UseShellExecute = true }); return; } catch {}
+                        }
+                    }
+                } catch {}
+            }
+
+            // Pass B: Starts with or contains match
+            foreach (var dir in searchDirs) {
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+                try {
+                    var lnks = Directory.GetFiles(dir, "*.lnk", SearchOption.AllDirectories);
+                    foreach (var lnk in lnks) {
+                        string fn = Path.GetFileNameWithoutExtension(lnk).ToLowerInvariant();
+                        if (fn.StartsWith(cleanName) || fn.Contains(cleanName) || cleanName.Contains(fn)) {
+                            if (TryShellExecute(lnk, null, Path.GetDirectoryName(lnk))) return;
+                            try { Process.Start(new ProcessStartInfo(lnk) { UseShellExecute = true }); return; } catch {}
+                        }
+                    }
+                } catch {}
+            }
+        } catch {}
+
+        // 6. Check Registry App Paths (HKCU & HKLM)
+        try {
+            string appName = t.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? t : (t + ".exe");
+            string[] regRoots = new string[] {
+                @"Software\Microsoft\Windows\CurrentVersion\App Paths\",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\"
+            };
+            foreach (var root in regRoots) {
+                using (var k = Registry.CurrentUser.OpenSubKey(root + appName)) {
+                    if (k != null) {
+                        object val = k.GetValue("");
+                        if (val != null) {
+                            string p = val.ToString().Trim('\"');
+                            if (File.Exists(p)) {
+                                if (TryShellExecute(p, null, Path.GetDirectoryName(p))) return;
+                            }
+                        }
+                    }
+                }
+                using (var k = Registry.LocalMachine.OpenSubKey(root + appName)) {
+                    if (k != null) {
+                        object val = k.GetValue("");
+                        if (val != null) {
+                            string p = val.ToString().Trim('\"');
+                            if (File.Exists(p)) {
+                                if (TryShellExecute(p, null, Path.GetDirectoryName(p))) return;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {}
+
+        // 7. Direct ShellExecute or Process Start attempt (safely, no cmd /c start)
+        if (TryShellExecute(t)) return;
+        if (!t.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && TryShellExecute(t + ".exe")) return;
+
+        try {
+            Process.Start(new ProcessStartInfo(t) { UseShellExecute = true });
+            return;
+        } catch {
+            if (!t.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
+                try {
+                    Process.Start(new ProcessStartInfo(t + ".exe") { UseShellExecute = true });
                     return;
                 } catch {}
             }
         }
 
-        if (t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            t.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
-            string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
-            string chromeX86 = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
-
-            try {
-                if (File.Exists(chromePath)) {
-                    Process.Start(new ProcessStartInfo(chromePath, "\"" + t + "\"") { UseShellExecute = true });
-                    return;
-                }
-                if (File.Exists(chromeX86)) {
-                    Process.Start(new ProcessStartInfo(chromeX86, "\"" + t + "\"") { UseShellExecute = true });
-                    return;
-                }
-                Process.Start(new ProcessStartInfo("cmd.exe", "/c start \"\" \"" + t + "\"") { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
-                return;
-            } catch {}
-        }
-
-        if (t.Equals("settings", StringComparison.OrdinalIgnoreCase) ||
-            t.Equals("ms-settings:", StringComparison.OrdinalIgnoreCase)) {
-            try {
-                Process.Start(new ProcessStartInfo("cmd.exe", "/c start ms-settings:") { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
-                return;
-            } catch {}
-        }
-
-        try {
-            Process.Start(new ProcessStartInfo(t) { UseShellExecute = true });
-        } catch {
-            try {
-                Process.Start(new ProcessStartInfo("cmd.exe", "/c start " + t) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
-            } catch {}
-        }
+        Console.WriteLine("[DeckLinkNative] Could not launch target: " + t);
     }
 
     // ─── Paste Macro Text ───

@@ -7,17 +7,23 @@ module.exports = {
     asar: true,
     name: 'DeckLink',
     executableName: 'DeckLink',
+    icon: path.join(__dirname, 'assets', 'icon'),
     extraResource: [
       path.join(__dirname, 'DeckLinkNative.exe'),
       path.join(__dirname, 'src', 'web', 'mobile-deck.html'),
-      path.join(__dirname, 'src', 'web', 'manifest.json')
+      path.join(__dirname, 'src', 'web', 'manifest.json'),
+      path.join(__dirname, 'assets', 'icon.ico'),
+      path.join(__dirname, 'assets', 'icon.png'),
+      path.join(__dirname, 'assets', 'tray-icon.ico')
     ]
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        setupIcon: path.join(__dirname, 'assets', 'icon.ico')
+      },
     },
     {
       name: '@electron-forge/maker-zip',

@@ -1,100 +1,72 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DeckLink Server - PC Companion</title>
-    <script type="module" crossorigin src="/assets/index-ayN8fgKr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BjOFiQx0.css">
-  </head>
-  <body>
-    <div class="app-container">
-      <!-- Header -->
-      <header class="header">
-        <div class="logo-group">
-          <div class="logo-icon">🎛️</div>
-          <div>
-            <h1 class="logo-title">DECKLINK SERVER</h1>
-            <p class="logo-sub">Stream Deck Companion for PC</p>
-          </div>
-        </div>
-        <div class="status-pill" id="server-status">
-          <span class="status-dot"></span>
-          <span class="status-text">ONLINE : <span id="server-port">8765</span></span>
-        </div>
-      </header>
-
-      <!-- Connection Info Section -->
-      <section class="section qr-connection-card">
-        <div class="qr-col">
-          <div class="qr-box" id="qr-box">
-            <img id="qr-img" class="qr-image" alt="QR Code" style="display: none;" />
-            <div id="qr-loading" class="qr-loading">Generating QR...</div>
-          </div>
-          <div class="qr-caption">Scan with Phone Camera</div>
-        </div>
-        <div class="connection-details">
-          <h2 class="section-title">📱 Instant Connect</h2>
-          <p class="section-hint">Scan with your iPhone, iPad, or Android camera to open your Stream Deck with zero typing!</p>
-          
-          <div class="quick-actions-bar">
-            <button class="primary-action-btn" id="btn-open-browser">🖥️ Open Deck in PC Browser</button>
-            <label class="autostart-toggle">
-              <input type="checkbox" id="chk-autostart" />
-              <span>Start with Windows automatically</span>
-            </label>
-          </div>
-
-          <div class="ip-list" id="ip-list">
-            <div class="ip-card skeleton">Detecting network interfaces...</div>
-          </div>
-
-          <div class="token-banner">
-            <span class="token-label">Auth Token:</span>
-            <code class="token-val" id="auth-token">decklink-usb-auto</code>
-            <button class="copy-btn" id="copy-token-btn" title="Copy Token">Copy</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Status & Devices -->
-      <div class="grid-two-col">
-        <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">🔗 Connected Devices</h2>
-            <span class="badge" id="client-count">0 Connected</span>
-          </div>
-          <div class="client-list" id="client-list">
-            <div class="empty-state">No devices currently connected. Open DeckLink on your phone to connect!</div>
-          </div>
-        </section>
-
-        <!-- Quick Test Actions -->
-        <section class="section">
-          <h2 class="section-title">⚡ Quick Diagnostics</h2>
-          <p class="section-hint">Test PC macro execution right from here:</p>
-          <div class="test-btn-grid">
-            <button class="test-btn" id="btn-test-media">▶ Play / Pause</button>
-            <button class="test-btn" id="btn-test-mute">🔇 Mute Audio</button>
-            <button class="test-btn" id="btn-test-volup">🔊 Vol +</button>
-            <button class="test-btn" id="btn-test-voldown">🔉 Vol -</button>
-            <button class="test-btn" id="btn-test-hotkey">📸 Win+Shift+S</button>
-          </div>
-          <div id="test-feedback" class="test-feedback"></div>
-        </section>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DeckLink Server</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-C4nSqEQs.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-kEYDeLqP.css">
+</head>
+<body>
+<main class="app">
+  <header class="hd rise">
+    <div class="brand">
+      <div class="logo"><i></i><i></i><i></i><i></i></div>
+      <div>
+        <h1>DECKLINK</h1>
+        <p class="sub">Companion server for your deck</p>
       </div>
-
-      <!-- Live Event Log -->
-      <section class="section log-section">
-        <div class="section-header">
-          <h2 class="section-title">📡 Real-Time Command Log</h2>
-          <button class="clear-btn" id="clear-log-btn">Clear</button>
-        </div>
-        <div class="terminal" id="log-terminal">
-          <div class="log-entry system">[Server initialized. Waiting for commands from DeckLink app...]</div>
-        </div>
-      </section>
     </div>
+    <div class="status">
+      <span class="dot"></span>Online <b id="port">:8765</b>
+    </div>
+  </header>
 
-  </body>
+  <section class="card hero rise" style="--i:1">
+    <div class="qrwrap">
+      <div class="qr"><svg id="qrsvg" aria-label="QR code to connect"></svg></div>
+      <div class="cap">Scan with your phone camera<span class="qu" id="qurl"></span></div>
+    </div>
+    <div>
+      <h2>Instant connect</h2>
+      <p class="mut">Scan with your iPhone, iPad or Android camera to open your deck with zero typing. Pick a network below to change where the code points.</p>
+      <div class="row">
+        <button class="btn primary" id="open">Open deck in PC browser</button>
+        <label class="tog"><input type="checkbox" id="auto"><span class="sw"></span><span class="t">Start with Windows</span></label>
+      </div>
+      <div class="nets" id="nets"></div>
+      <div class="token">
+        <span>Auth token</span>
+        <code id="tok">decklink-usb-auto</code>
+        <button class="eye" id="eye" aria-label="Show token" aria-pressed="false"><svg viewBox="0 0 24 24"><path id="eyep" d=""/></svg></button>
+        <button class="btn ghost sm" id="ctok">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="card rise" style="--i:2">
+      <h3>Connected devices <span class="badge" id="dc">0 connected</span></h3>
+      <div id="devs"></div>
+    </section>
+    <section class="card rise" style="--i:3">
+      <h3>Quick diagnostics</h3>
+      <p class="mut">Test PC macro execution right from here.</p>
+      <div class="tests" id="tests"></div>
+    </section>
+  </div>
+
+  <section class="card rise" style="--i:4">
+    <h3>Command log <button class="btn ghost sm" id="clr">Clear</button></h3>
+    <div class="term" id="term" role="log" aria-live="polite"></div>
+  </section>
+
+  <footer class="rise" style="--i:5">
+    <span>DeckLink Server</span>
+    <span id="up">Uptime 00:00:00</span>
+  </footer>
+</main>
+
+</body>
 </html>

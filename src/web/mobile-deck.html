@@ -10,6 +10,18 @@
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#d5dcf0">
 <title>DeckLink+ - Stream Deck</title>
 <link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<meta name="apple-mobile-web-app-title" content="DeckLink">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -2103,11 +2115,11 @@ const DK = {
   // Page 3 (8 Keys)
   taskmgr:{ l: 'TaskMgr',i: 'game',   c: C.purple, t: 'tap',    msg: 'Task Manager', action: 'system', payload: { action: 'taskmgr' } },
   explorer:{ l: 'Files', i: 'folder', c: C.orange, t: 'tap',    msg: 'File Explorer', action: 'hotkey', payload: { modifiers: ['win'], key: 'e' } },
-  settings:{ l: 'Settings', i: 'bulb',c: C.black,  blk: 1,      t: 'tap',    msg: 'Settings', action: 'launch', payload: { path: 'settings' } },
+  settings:{ l: 'Settings', i: 'bulb',c: C.black,  blk: 1,      t: 'tap',    msg: 'Settings', action: 'launch', payload: { path: 'ms-settings:' } },
   fscreen:{ l: 'Fullscreen', i: 'screen', c: C.cyan, t: 'tap',  msg: 'Fullscreen', action: 'hotkey', payload: { modifiers: [], key: 'f11' } },
-  discord:{ l: 'Discord', i: 'chat',  c: C.purple, t: 'tap',    msg: 'Discord', action: 'launch', payload: { path: 'discord.exe' } },
-  spotify:{ l: 'Spotify', i: 'wave',  c: C.green,  t: 'tap',    msg: 'Spotify', action: 'launch', payload: { path: 'spotify.exe' } },
-  steam:  { l: 'Steam',   i: 'game',  c: C.cyan,   t: 'tap',    msg: 'Steam', action: 'launch', payload: { path: 'steam.exe' } },
+  discord:{ l: 'Discord', i: 'chat',  c: C.purple, t: 'tap',    msg: 'Discord', action: 'launch', payload: { path: 'discord://' } },
+  spotify:{ l: 'Spotify', i: 'wave',  c: C.green,  t: 'tap',    msg: 'Spotify', action: 'launch', payload: { path: 'spotify:' } },
+  steam:  { l: 'Steam',   i: 'game',  c: C.cyan,   t: 'tap',    msg: 'Steam', action: 'launch', payload: { path: 'steam://open/main' } },
   chrome: { l: 'Chrome',  i: 'screen',c: C.pink,   t: 'tap',    msg: 'Browser', action: 'launch', payload: { path: 'https://google.com' } }
 };
 
@@ -2163,8 +2175,8 @@ const EXTRA_KEY_POOL = [
   { l: 'Play/Pause',i: 'play',    c: C.cyan,   action: 'media',  payload: { action: 'play' } },
   { l: 'Next Track',i: 'step',    c: C.purple, action: 'media',  payload: { action: 'next' } },
   { l: 'Prev Track',i: 'step',    c: C.orange, action: 'media',  payload: { action: 'prev' } },
-  { l: 'Discord',   i: 'chat',    c: C.purple, action: 'launch', payload: { path: 'discord' } },
-  { l: 'Steam',     i: 'game',    c: C.cyan,   action: 'launch', payload: { path: 'steam' } },
+  { l: 'Discord',   i: 'chat',    c: C.purple, action: 'launch', payload: { path: 'discord://' } },
+  { l: 'Steam',     i: 'game',    c: C.cyan,   action: 'launch', payload: { path: 'steam://open/main' } },
   { l: 'Game Mode', i: 'game',    c: C.green,  action: 'system', payload: { action: 'gamemode' } },
   { l: 'Bookmark',  i: 'star',    c: C.orange, action: 'hotkey', payload: { modifiers: ['ctrl'], key: 'd' } },
   { l: 'Desk Light',i: 'bulb',    c: C.cyan,   action: 'launch', payload: { path: '' } }
@@ -2242,6 +2254,7 @@ function savePagesData() {
     localStorage.setItem('dp_deck_cols', String(deckCols));
     localStorage.setItem('dp_deck_rows', String(deckRows));
     localStorage.setItem('dp_keys', JSON.stringify(T));
+    if (typeof syncProfileToServer === 'function') syncProfileToServer();
   } catch (_) {}
 }
 
@@ -2354,8 +2367,163 @@ function saveDialsData() {
       localStorage.setItem('dp_dials_custom', JSON.stringify(D));
       const state = D.map(d => ({ n: d.n, v: d.v, m: d.m ? 1 : 0 }));
       localStorage.setItem('dp_dials_state', JSON.stringify(state));
+      if (typeof syncProfileToServer === 'function') syncProfileToServer();
     } catch (_) {}
   }, 100);
+}
+
+/* ── Centralized Deck Profile Sync (Cross-Device Settings Engine) ── */
+let isApplyingRemoteProfile = false;
+let syncProfileDebounce = null;
+
+function getCompleteDeckProfile() {
+  return {
+    keys: T,
+    pages: PAGES_MAIN_KEYS,
+    cols: deckCols,
+    rows: deckRows,
+    dials: D,
+    theme: document.documentElement.getAttribute('data-theme') || 'dark',
+    deckSize: (typeof deckSizeMode !== 'undefined') ? deckSizeMode : 'normal',
+    cardShape: (typeof cardShapeMode !== 'undefined') ? cardShapeMode : 'square',
+    dispMode: (typeof dispMode !== 'undefined') ? dispMode : '4',
+    updatedAt: Date.now()
+  };
+}
+
+function syncProfileToServer() {
+  if (isApplyingRemoteProfile) return;
+  if (syncProfileDebounce) clearTimeout(syncProfileDebounce);
+  syncProfileDebounce = setTimeout(() => {
+    const profile = getCompleteDeckProfile();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({
+          id: Date.now().toString(),
+          type: 'save-deck-profile',
+          profile
+        }));
+      } catch (_) {}
+    }
+    try {
+      const proto = location.protocol === 'file:' ? 'http:' : (location.protocol || 'http:');
+      const host = getTargetWsHost();
+      fetch(`${proto}//${host}/api/deck-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profile)
+      }).catch(() => {});
+    } catch (_) {}
+  }, 200);
+}
+
+function applyDeckProfile(profile) {
+  if (!profile || typeof profile !== 'object') return;
+  isApplyingRemoteProfile = true;
+  try {
+    let structureChanged = false;
+    let keysChanged = false;
+
+    // Apply Keys
+    if (profile.keys && typeof profile.keys === 'object' && Object.keys(profile.keys).length > 0) {
+      T = Object.assign({}, DK, profile.keys);
+      localStorage.setItem('dp_keys', JSON.stringify(T));
+      keysChanged = true;
+    }
+
+    // Apply Grid Layout (cols & rows)
+    if (typeof profile.cols === 'number' && typeof profile.rows === 'number') {
+      if (profile.cols >= 2 && profile.cols <= 6 && profile.rows >= 1 && profile.rows <= 4) {
+        if (deckCols !== profile.cols || deckRows !== profile.rows) {
+          deckCols = profile.cols;
+          deckRows = profile.rows;
+          localStorage.setItem('dp_deck_cols', String(deckCols));
+          localStorage.setItem('dp_deck_rows', String(deckRows));
+          document.documentElement.style.setProperty('--deck-cols', deckCols);
+          document.documentElement.style.setProperty('--deck-rows', deckRows);
+          structureChanged = true;
+        }
+      }
+    }
+
+    // Apply Pages
+    if (Array.isArray(profile.pages) && profile.pages.length > 0) {
+      PAGES_MAIN_KEYS = profile.pages;
+      localStorage.setItem('dp_deck_pages', JSON.stringify(PAGES_MAIN_KEYS));
+      structureChanged = true;
+    }
+
+    // Apply Dials
+    if (Array.isArray(profile.dials) && profile.dials.length >= 4) {
+      profile.dials.forEach((d, idx) => {
+        if (D[idx]) {
+          Object.assign(D[idx], d);
+        } else {
+          D[idx] = d;
+        }
+      });
+      localStorage.setItem('dp_dials_custom', JSON.stringify(D));
+      const state = D.map(d => ({ n: d.n, v: d.v, m: d.m ? 1 : 0 }));
+      localStorage.setItem('dp_dials_state', JSON.stringify(state));
+      renderStrip();
+      updateStripAndKnobs();
+    }
+
+    // Apply Theme
+    if (profile.theme && (profile.theme === 'light' || profile.theme === 'dark')) {
+      applyTheme(profile.theme);
+      localStorage.setItem('dp_theme', profile.theme);
+    }
+
+    // Apply Display / Card Sizing
+    if (profile.deckSize || profile.cardShape || profile.dispMode) {
+      if (profile.deckSize) deckSizeMode = profile.deckSize;
+      if (profile.cardShape) cardShapeMode = profile.cardShape;
+      if (profile.dispMode) dispMode = profile.dispMode;
+      localStorage.setItem('dp_deck_size', deckSizeMode);
+      localStorage.setItem('dp_card_shape', cardShapeMode);
+      localStorage.setItem('dp_disp_mode', dispMode);
+      if (typeof applyDeckSizing === 'function') {
+        applyDeckSizing(deckSizeMode, cardShapeMode, dispMode);
+      }
+    }
+
+    if (keysChanged || structureChanged) {
+      renderKeys();
+    }
+  } catch (err) {
+    console.error('[DeckLink] Error applying deck profile:', err);
+  } finally {
+    isApplyingRemoteProfile = false;
+  }
+}
+
+function syncCurrentProfileToServerIfCustom() {
+  try {
+    const savedKeys = localStorage.getItem('dp_keys');
+    const savedDials = localStorage.getItem('dp_dials_custom');
+    if (savedKeys || savedDials) {
+      console.log('[DeckLink] Auto-uploading existing customization to server...');
+      syncProfileToServer();
+    }
+  } catch (_) {}
+}
+
+function fetchDeckProfile() {
+  try {
+    const proto = location.protocol === 'file:' ? 'http:' : (location.protocol || 'http:');
+    const host = getTargetWsHost();
+    fetch(`${proto}//${host}/api/deck-profile`)
+      .then(r => r.json())
+      .then(profile => {
+        if (profile && profile.keys && Object.keys(profile.keys).length > 0) {
+          applyDeckProfile(profile);
+        } else {
+          syncCurrentProfileToServerIfCustom();
+        }
+      })
+      .catch(() => {});
+  } catch (_) {}
 }
 
 /* ── WebSocket Connection ── */
@@ -2364,8 +2532,31 @@ function getTargetWsHost() {
   if (location.host && location.protocol !== 'file:') {
     return location.host;
   }
-  return localStorage.getItem('dp_server_host') || '10.174.17.45:8765';
+  return localStorage.getItem('dp_server_host') || '10.197.31.44:8765';
 }
+
+window.setTargetWsHost = function(newHost) {
+  if (!newHost) return;
+  const cleaned = String(newHost).replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim();
+  if (cleaned) {
+    localStorage.setItem('dp_server_host', cleaned);
+    if ($('pair-url-input')) $('pair-url-input').value = 'http://' + cleaned;
+    toast('Auto-detected PC: ' + cleaned);
+    if (ws) {
+      try { ws.close(); } catch (_) {}
+      ws = null;
+    }
+    setTimeout(connectWS, 100);
+  }
+};
+
+window.checkAndSetHost = function(candidateHost) {
+  if (!candidateHost || ws && ws.readyState === WebSocket.OPEN) return;
+  const current = localStorage.getItem('dp_server_host');
+  if (!current) {
+    window.setTargetWsHost(candidateHost);
+  }
+};
 
 function connectWS() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
@@ -2381,13 +2572,30 @@ function connectWS() {
       if (reconT) clearTimeout(reconT);
       ws.send(JSON.stringify({ type: 'handshake', client: 'DeckLink+ Web', token: 'decklink-usb-auto', timestamp: Date.now() }));
       ws.send(JSON.stringify({ type: 'get-audio-devices' }));
+      ws.send(JSON.stringify({ type: 'get-installed-apps' }));
+      ws.send(JSON.stringify({ type: 'get-deck-profile' }));
       fetchAudioDevices();
+      fetchInstalledApps();
+      fetchDeckProfile();
     };
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'audio-devices' && msg.data) {
+        if (msg.type === 'welcome') {
+          if (msg.installedApps || msg.appActions) {
+            onInstalledAppsReceived({ apps: msg.installedApps, appActions: msg.appActions, detected: msg.detected });
+          }
+          if (msg.deckProfile && msg.deckProfile.keys && Object.keys(msg.deckProfile.keys).length > 0) {
+            applyDeckProfile(msg.deckProfile);
+          } else {
+            syncCurrentProfileToServerIfCustom();
+          }
+        } else if (msg.type === 'installed-apps' && msg.data) {
+          onInstalledAppsReceived(msg.data);
+        } else if (msg.type === 'audio-devices' && msg.data) {
           onAudioDevicesReceived(msg.data);
+        } else if ((msg.type === 'deck-profile' || msg.type === 'deck-profile-updated') && msg.profile) {
+          applyDeckProfile(msg.profile);
         }
       } catch (_) {}
     };
@@ -2431,7 +2639,7 @@ function openPairSheet() {
   }
 
   const isDirectIp = window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1') && window.location.origin.startsWith('http');
-  const initialOrigin = isDirectIp ? window.location.origin : (localStorage.getItem('dp_server_host') ? 'http://' + localStorage.getItem('dp_server_host') : 'http://10.174.17.45:8765');
+  const initialOrigin = isDirectIp ? window.location.origin : (localStorage.getItem('dp_server_host') ? 'http://' + localStorage.getItem('dp_server_host') : 'http://10.197.31.44:8765');
   $('pair-url-input').value = initialOrigin;
 
   // Fetch /api/info from server to get accurate local Wi-Fi IP and pre-generated QR code
@@ -2507,6 +2715,16 @@ function def(id) {
   }
   if (!item.l) item.l = String(id || 'Key');
   if (!item.i) item.i = 'game';
+
+  // Normalize legacy app launch paths
+  if (item && item.action === 'launch' && item.payload && item.payload.path) {
+    const p = String(item.payload.path).toLowerCase().trim();
+    if (p === 'discord' || p === 'discord.exe') item.payload.path = 'discord://';
+    else if (p === 'spotify' || p === 'spotify.exe') item.payload.path = 'spotify:';
+    else if (p === 'steam' || p === 'steam.exe') item.payload.path = 'steam://open/main';
+    else if (p === 'settings') item.payload.path = 'ms-settings:';
+  }
+
   return item;
 }
 
@@ -3259,73 +3477,7 @@ document.querySelectorAll('.knob').forEach(k => {
 });
 
 /* ── Action Catalog & Multi-Step Macro Builder ── */
-const CAT = `#Apps
-Chrome
-Edge
-Firefox
-Brave
-OBS Studio
-Streamlabs
-Twitch Studio
-Elgato Camera Hub
-Elgato Wave Link
-Spotify
-Discord
-Steam
-Epic Games
-Battle.net
-Riot Client
-Ubisoft Connect
-EA App
-GOG Galaxy
-Minecraft Launcher
-Xbox
-WhatsApp
-Telegram
-Slack
-Teams
-Zoom
-Skype
-VS Code
-Notepad
-Calculator
-Terminal
-PowerShell
-Command Prompt
-File Explorer
-Task Manager
-Settings
-Control Panel
-Paint
-Snipping Tool
-Photoshop
-Illustrator
-Premiere Pro
-After Effects
-DaVinci Resolve
-Lightroom
-Blender
-Figma
-Canva
-Notion
-Obsidian
-Word
-Excel
-PowerPoint
-Outlook
-OneNote
-VLC
-Audacity
-Voicemeeter
-NVIDIA App
-MSI Afterburner
-Unity Hub
-Android Studio
-Postman
-Docker Desktop
-Git Bash
-7-Zip
-#Streaming
+const BASE_CAT = `#Streaming
 OBS: Start streaming
 OBS: Stop streaming
 OBS: Start recording
@@ -3497,20 +3649,136 @@ Stop if app is not running~Process name
 Switch deck page~Main or Scenes
 Toggle this key on or off`;
 
+let installedAppsList = [];
+let detectedAppActions = [];
+let detectedFlags = {};
+
 const CATS = [], AL = [], A = {};
-let cc = '';
-CAT.split('\n').forEach(l => {
-  l = l.trim();
-  if (!l) return;
-  if (l[0] === '#') {
-    cc = l.slice(1);
-    CATS.push(cc);
-    return;
+
+function rebuildActionCatalog() {
+  CATS.length = 0;
+  AL.length = 0;
+  for (const k in A) delete A[k];
+
+  // 1. Installed Apps Category (Always real installed software apps!)
+  CATS.push('Apps');
+  if (installedAppsList && installedAppsList.length > 0) {
+    installedAppsList.forEach(app => {
+      const a = {
+        id: `Apps:${app.name}`,
+        n: app.name,
+        c: 'Apps',
+        ph: null,
+        cmd: app.path || app.name,
+        path: app.path || app.name,
+        icon: app.icon || 'folder',
+        color: app.color || C.purple
+      };
+      AL.push(a);
+      A[a.id] = a;
+    });
+  } else {
+    // Initial fallback if not yet connected
+    const fallbackApps = [
+      { n: 'Discord', p: 'discord://', i: 'chat', c: C.purple },
+      { n: 'OBS Studio', p: 'obs64', i: 'live', c: C.cyan },
+      { n: 'Google Chrome', p: 'chrome', i: 'globe', c: C.pink },
+      { n: 'Brave', p: 'brave', i: 'globe', c: C.orange },
+      { n: 'Calculator', p: 'calc.exe', i: 'calc', c: C.cyan },
+      { n: 'Notepad', p: 'notepad.exe', i: 'doc', c: C.orange },
+      { n: 'File Explorer', p: 'explorer.exe', i: 'folder', c: C.orange },
+      { n: 'Task Manager', p: 'taskmgr.exe', i: 'screen', c: C.green },
+      { n: 'Settings', p: 'ms-settings:', i: 'bulb', c: C.black },
+      { n: 'Terminal', p: 'wt.exe', i: 'term', c: C.purple },
+      { n: 'Snipping Tool', p: 'snippingtool.exe', i: 'cam', c: C.purple },
+      { n: 'Paint', p: 'mspaint.exe', i: 'star', c: C.pink }
+    ];
+    fallbackApps.forEach(item => {
+      const a = {
+        id: `Apps:${item.n}`,
+        n: item.n,
+        c: 'Apps',
+        ph: null,
+        cmd: item.p,
+        path: item.p,
+        icon: item.i,
+        color: item.c
+      };
+      AL.push(a);
+      A[a.id] = a;
+    });
   }
-  const p = l.split('~'), a = { id: cc + ':' + p[0], n: p[0], c: cc, ph: p[1] == null ? null : p[1], cmd: p[0] };
-  AL.push(a);
-  A[a.id] = a;
-});
+
+  // 2. Add detected app actions first if any
+  const appActionCats = new Map();
+  if (detectedAppActions && detectedAppActions.length > 0) {
+    detectedAppActions.forEach(act => {
+      if (!appActionCats.has(act.c)) appActionCats.set(act.c, []);
+      appActionCats.get(act.c).push({
+        id: act.id,
+        n: act.n,
+        c: act.c,
+        ph: act.ph || null,
+        cmd: act.n,
+        icon: act.icon,
+        app: act.app
+      });
+    });
+  }
+
+  // 3. Parse BASE_CAT categories
+  let cc = '';
+  BASE_CAT.split('\n').forEach(l => {
+    l = l.trim();
+    if (!l) return;
+    if (l[0] === '#') {
+      cc = l.slice(1);
+      if (!CATS.includes(cc)) CATS.push(cc);
+      // Prepend specialized app actions for this category if any
+      if (appActionCats.has(cc)) {
+        appActionCats.get(cc).forEach(act => {
+          if (!A[act.id]) {
+            AL.push(act);
+            A[act.id] = act;
+          }
+        });
+      }
+      return;
+    }
+    const p = l.split('~');
+    const a = { id: cc + ':' + p[0], n: p[0], c: cc, ph: p[1] == null ? null : p[1], cmd: p[0] };
+    if (!A[a.id]) {
+      AL.push(a);
+      A[a.id] = a;
+    }
+  });
+
+  if (document.body.classList.contains('pk')) {
+    pkr();
+  }
+}
+
+function onInstalledAppsReceived(data) {
+  if (!data) return;
+  if (Array.isArray(data.apps) && data.apps.length > 0) installedAppsList = data.apps;
+  if (Array.isArray(data.appActions)) detectedAppActions = data.appActions;
+  if (data.detected) detectedFlags = data.detected;
+  try {
+    localStorage.setItem('dp_installed_apps', JSON.stringify({ apps: installedAppsList, appActions: detectedAppActions, detected: detectedFlags }));
+  } catch (_) {}
+  rebuildActionCatalog();
+}
+
+// Initial restore from local cache
+try {
+  const cached = JSON.parse(localStorage.getItem('dp_installed_apps'));
+  if (cached && Array.isArray(cached.apps) && cached.apps.length > 0) {
+    installedAppsList = cached.apps;
+    detectedAppActions = cached.appActions || [];
+    detectedFlags = cached.detected || {};
+  }
+} catch (_) {}
+rebuildActionCatalog();
 
 const CI = {
   'Apps': 'folder',
@@ -3527,7 +3795,10 @@ const CI = {
   'Power': 'power',
   'Flow': 'clock'
 };
-const cicon = c => `<svg viewBox="0 0 24 24"><path d="${P[CI[c]] || P.star}"/></svg>`;
+const cicon = (c, icOverride) => {
+  const k = (icOverride && P[icOverride]) ? icOverride : (CI[c] || 'star');
+  return `<svg viewBox="0 0 24 24"><path d="${P[k] || P.star}"/></svg>`;
+};
 const ar = p => `<svg viewBox="0 0 24 24"><path d="${p}"/></svg>`;
 
 const DARK = ['#2b2e44', '#0d0e18'];
@@ -3665,6 +3936,7 @@ function openPk() {
   $('sheet').inert = true;
   $('pks').value = '';
   pcat = 'All';
+  fetchInstalledApps();
   pkr();
   setTimeout(() => $('pks').focus({ preventScroll: true }), 300);
 }
@@ -3684,7 +3956,7 @@ function pkr() {
       last = a.c;
       h += `<div class="pk-h">${a.c}</div>`;
     }
-    h += `<button class="pk-i" data-id="${esc(a.id)}"><span class="sti">${cicon(a.c)}</span><span>${esc(a.n)}</span><em>${q || pcat !== 'All' ? a.c : ''}</em></button>`;
+    h += `<button class="pk-i" data-id="${esc(a.id)}"><span class="sti">${cicon(a.c, a.icon)}</span><span>${esc(a.n)}</span><em>${q || pcat !== 'All' ? a.c : ''}</em></button>`;
   });
   if (!L.length) {
     h = `<button class="pk-i" data-custom><span class="sti">${cicon('Files and scripts')}</span><span>Run “${esc($('pks').value.trim())}” as a command</span></button>`;
@@ -3703,7 +3975,22 @@ $('pkc').onclick = e => {
 $('pkl').onclick = e => {
   const b = e.target.closest('.pk-i');
   if (!b || !ed) return;
-  ed.s.push(b.dataset.custom !== undefined ? { a: 'Files and scripts:Run command', v: $('pks').value.trim() } : { a: b.dataset.id, v: '' });
+  const actionId = b.dataset.id;
+  const chosen = A[actionId];
+  if (b.dataset.custom !== undefined) {
+    ed.s.push({ a: 'Files and scripts:Run command', v: $('pks').value.trim() });
+  } else if (chosen) {
+    ed.s.push({ a: chosen.id, v: chosen.path || '' });
+    if (ed.empty || !ed.l || ed.l === 'Key' || ed.l === 'Add action') {
+      ed.l = chosen.n || 'Key';
+      if (chosen.icon) ed.i = chosen.icon;
+      if (chosen.color) ed.c = chosen.color;
+      ed.empty = false;
+      sheet();
+    }
+  } else {
+    ed.s.push({ a: actionId, v: '' });
+  }
   closePk();
   steps();
   const L = $('steps').lastElementChild;
@@ -3758,6 +4045,7 @@ $('ssave').onclick = () => {
   };
 
   localStorage.setItem('dp_keys', JSON.stringify(T));
+  syncProfileToServer();
   closeSheet();
   renderKeys();
   toast(s.length > 1 ? `Saved macro with ${s.length} steps` : `Saved: ${l}`);
@@ -3768,6 +4056,7 @@ $('reset').onclick = () => {
   const keyId = ed.k.id;
   delete T[keyId];
   localStorage.setItem('dp_keys', JSON.stringify(T));
+  syncProfileToServer();
   closeSheet();
   renderKeys();
   toast('Reset to default');
@@ -3788,6 +4077,7 @@ if (clearBtn) {
       s: []
     };
     localStorage.setItem('dp_keys', JSON.stringify(T));
+    syncProfileToServer();
     closeSheet();
     renderKeys();
     toast('Button cleared to empty (+)');
@@ -3844,6 +4134,18 @@ async function fetchAudioDevices() {
     if (res.ok) {
       const data = await res.json();
       onAudioDevicesReceived(data);
+    }
+  } catch (_) {}
+}
+
+async function fetchInstalledApps() {
+  try {
+    const host = getTargetWsHost();
+    const proto = (location.protocol === 'https:') ? 'https:' : 'http:';
+    const res = await fetch(`${proto}//${host}/api/installed-apps`);
+    if (res.ok) {
+      const data = await res.json();
+      onInstalledAppsReceived(data);
     }
   } catch (_) {}
 }
@@ -4345,15 +4647,17 @@ async function execStep(s, a, k) {
   if (cat === 'Apps') {
     const appMap = {
       'Chrome': 'chrome',
+      'Google Chrome': 'chrome',
       'Edge': 'msedge',
+      'Microsoft Edge': 'msedge',
       'Firefox': 'firefox',
       'Brave': 'brave',
       'OBS Studio': 'obs64',
-      'Streamlabs': 'Streamlabs OBS',
-      'Spotify': 'spotify',
-      'Discord': 'discord',
-      'Steam': 'steam',
+      'Spotify': 'spotify:',
+      'Discord': 'discord://',
+      'Steam': 'steam://open/main',
       'VS Code': 'code',
+      'Visual Studio Code': 'code',
       'Notepad': 'notepad.exe',
       'Calculator': 'calc.exe',
       'Terminal': 'wt.exe',
@@ -4366,7 +4670,7 @@ async function execStep(s, a, k) {
       'Snipping Tool': 'snippingtool.exe',
       'Paint': 'mspaint.exe'
     };
-    const target = v || appMap[n] || (a && a.cmd) || n;
+    const target = v || (a && a.path) || appMap[n] || (a && a.cmd) || n;
     cmd('launch', { path: target });
     await sleep(250);
     return;
@@ -4851,6 +5155,7 @@ $('thm').addEventListener('click', () => {
   const next = cur === 'light' ? 'dark' : 'light';
   applyTheme(next);
   localStorage.setItem('dp_theme', next);
+  syncProfileToServer();
   toast('Theme: ' + next.toUpperCase());
 });
 const svdTheme = localStorage.getItem('dp_theme') || 'light';
@@ -4861,7 +5166,16 @@ applyDeckSizing(deckSizeMode, cardShapeMode, dispMode);
 renderKeys();
 renderStrip();
 updateStripAndKnobs();
+fetchDeckProfile();
 connectWS();
+
+if (location.protocol === 'file:') {
+  setTimeout(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      openPairSheet();
+    }
+  }, 3000);
+}
 
 // Restore saved buttons page and display bar scroll position
 setTimeout(() => {

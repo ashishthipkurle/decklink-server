@@ -18,6 +18,38 @@ function getPreloadPath() {
   return path.join(__dirname, 'preload.js');
 }
 
+function getAppIconPath() {
+  const candidates = [
+    path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
+    path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+    path.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+    path.join(process.resourcesPath || '', 'icon.ico'),
+    path.join(process.resourcesPath || '', 'icon.png'),
+    path.join(process.cwd(), 'assets', 'icon.ico'),
+    path.join(process.cwd(), 'assets', 'icon.png')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+function getTrayIconPath() {
+  const candidates = [
+    path.join(__dirname, '..', '..', 'assets', 'tray-icon.ico'),
+    path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
+    path.join(process.resourcesPath || '', 'assets', 'tray-icon.ico'),
+    path.join(process.resourcesPath || '', 'tray-icon.ico'),
+    path.join(process.resourcesPath || '', 'icon.ico'),
+    path.join(process.cwd(), 'assets', 'tray-icon.ico'),
+    path.join(process.cwd(), 'assets', 'icon.ico')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
 function createSettingsWindow() {
   if (settingsWindow) {
     if (settingsWindow.isMinimized()) settingsWindow.restore();
@@ -25,6 +57,7 @@ function createSettingsWindow() {
     return settingsWindow;
   }
 
+  const iconPath = getAppIconPath();
   settingsWindow = new BrowserWindow({
     width: 900,
     height: 760,
@@ -32,6 +65,7 @@ function createSettingsWindow() {
     minHeight: 560,
     title: 'DeckLink PC Server',
     backgroundColor: '#f6f5fb',
+    icon: iconPath || undefined,
     webPreferences: {
       preload: getPreloadPath()
     },
@@ -60,8 +94,11 @@ function getSettingsWindow() {
 function setupTray() {
   let trayIcon;
   try {
-    trayIcon = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'assets', 'tray-icon.ico'));
-    if (trayIcon.isEmpty()) {
+    const tip = getTrayIconPath();
+    if (tip) {
+      trayIcon = nativeImage.createFromPath(tip);
+    }
+    if (!trayIcon || trayIcon.isEmpty()) {
       trayIcon = nativeImage.createEmpty();
     }
   } catch (e) {

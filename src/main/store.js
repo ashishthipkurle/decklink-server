@@ -166,6 +166,23 @@ function setAutoStart(val) {
   return Boolean(val);
 }
 
+function getDeckProfile() {
+  return store.get('deckProfile', null);
+}
+
+function saveDeckProfile(profile) {
+  if (!profile || typeof profile !== 'object') return null;
+  const current = store.get('deckProfile', {}) || {};
+  const merged = {
+    ...current,
+    ...profile,
+    updatedAt: Date.now()
+  };
+  store.set('deckProfile', merged);
+  console.log('[Store] Deck profile saved. Keys count:', Object.keys(merged.keys || {}).length);
+  return merged;
+}
+
 export {
   store,
   USB_AUTO_TOKEN,
@@ -177,5 +194,7 @@ export {
   isTokenValid,
   getServerPort,
   getAutoStart,
-  setAutoStart
+  setAutoStart,
+  getDeckProfile,
+  saveDeckProfile
 };

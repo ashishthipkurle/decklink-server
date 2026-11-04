@@ -7,6 +7,11 @@ import fs from 'fs';
 import os from 'os';
 import { spawn } from 'child_process';
 
+// Ensure consistent Windows AppUserModelID for taskbar, notifications & Start Menu pinning
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.squirrel.decklink_server.DeckLink');
+}
+
 // Squirrel Windows installer event handling (inlined to avoid runtime missing-module in app.asar)
 function handleSquirrelEvent() {
   if (process.platform !== 'win32') return false;
@@ -41,6 +46,67 @@ if (handleSquirrelEvent()) {
   app.quit();
 }
 
+function ensureCustomAppIcon() {
+  if (process.platform !== 'win32') return;
+  try {
+    const localAppData = process.env.LOCALAPPDATA;
+    if (!localAppData) return;
+
+    const candidates = [
+      path.join(process.resourcesPath || '', 'icon.ico'),
+      path.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+      path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
+      path.join(process.cwd(), 'assets', 'icon.ico'),
+      path.join(process.cwd(), 'decklink-server', 'assets', 'icon.ico')
+    ];
+
+    let iconBuf = null;
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        iconBuf = fs.readFileSync(c);
+        break;
+      }
+    }
+    if (!iconBuf) return;
+
+    const targets = [
+      path.join(localAppData, 'decklink_server', 'app.ico'),
+      path.join(localAppData, 'decklink_server', 'app-1.0.0', 'app.ico')
+    ];
+
+    for (const target of targets) {
+      const dir = path.dirname(target);
+      if (fs.existsSync(dir)) {
+        let needsUpdate = true;
+        if (fs.existsSync(target)) {
+          try {
+            const cur = fs.readFileSync(target);
+            if (cur.length === iconBuf.length) {
+              needsUpdate = false;
+            }
+          } catch (_) {}
+        }
+        if (needsUpdate) {
+          try {
+            const { exec } = require('child_process');
+            exec(`attrib -r "${target}"`, () => {
+              try {
+                fs.writeFileSync(target, iconBuf);
+                exec(`attrib +r "${target}"`, () => {});
+                console.log('[DeckLink] Protected custom purple app.ico at:', target);
+              } catch (_) {}
+            });
+          } catch (e) {
+            console.warn('[DeckLink] Could not write icon to', target, e.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[DeckLink] ensureCustomAppIcon error:', err.message);
+  }
+}
+
 import * as tray from './main/tray.js';
 import * as wsServer from './main/websocket-server.js';
 import * as mdns from './main/mdns.js';
@@ -54,6 +120,7 @@ import qrcode from 'qrcode';
 let adbWatcher = null;
 
 app.whenReady().then(() => {
+  ensureCustomAppIcon();
   const port = storeModule.getServerPort();
 
   storeModule.ensureUsbDevice();
@@ -88,7 +155,8 @@ ipcMain.handle('get-server-info', async () => {
   const port = storeModule.getServerPort();
   const rawIps = wsServer.getLocalIPs();
   const clients = wsServer.getConnectedClients();
-  const primaryIp = rawIps.length > 0 ? rawIps[0].address : 'localhost';
+  const bestIpObj = rawIps.find(i => i.isRec && !i.isVirt) || rawIps.find(i => !i.isVirt) || rawIps[0];
+  const primaryIp = bestIpObj ? bestIpObj.address : 'localhost';
   const deckUrl = `http://${primaryIp}:${port}`;
 
   let qrDataUrl = '';
@@ -119,14 +187,26 @@ ipcMain.handle('get-server-info', async () => {
     return 0;
   });
 
-  // Add Hostname (.local) adapter so user can connect even when Hotspot IP changes dynamically!
+  // Find the primary recommended physical adapter (Wi-Fi or LAN)
+  const bestWifi = adapters.find(a => a.rec && !a.virt) || adapters.find(a => !a.virt);
   const hostnameLocal = `${os.hostname().toLowerCase()}.local`;
-  adapters.unshift({
-    n: 'PC Hostname (Hotspot Safe)',
+  const hostAdapter = {
+    n: 'PC Hostname (Apple / iPad)',
     ip: hostnameLocal,
-    rec: 1,
+    rec: 0,
     virt: 0
-  });
+  };
+
+  if (bestWifi) {
+    const bestIdx = adapters.indexOf(bestWifi);
+    if (bestIdx > 0) {
+      adapters.splice(bestIdx, 1);
+      adapters.unshift(bestWifi);
+    }
+    adapters.splice(1, 0, hostAdapter);
+  } else {
+    adapters.unshift(hostAdapter);
+  }
 
   if (adapters.length === 0) {
     adapters.push({ n: 'Localhost / USB ADB', ip: '127.0.0.1', rec: 1, virt: 0 });
